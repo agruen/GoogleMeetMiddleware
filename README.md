@@ -41,13 +41,38 @@ tests/
 - Redirect URI pointing to your app’s callback, e.g. `https://meet.example.com/oauth2/callback`.
 
 ## Google Cloud Setup
-1. Create a Google Cloud project (or use existing).
+1. Create (or select) a Google Cloud project that belongs to your Workspace.
 2. APIs & Services → OAuth consent screen:
-   - User type: Internal (Workspace) or External with domain restriction.
-   - Add scopes: `openid`, `email`, `profile`, `https://www.googleapis.com/auth/calendar.events`.
-3. APIs & Services → Credentials → Create Credentials → OAuth client ID (Web application):
-   - Authorized redirect URI: `<BASE_URL>/oauth2/callback`.
-4. APIs & Services → Library → Enable “Google Calendar API”.
+   - User type: choose **Internal** for Workspace deployments. If you select **External**, add
+     the Workspace domain as a test user until the app is verified.
+   - Scopes: add `openid`, `email`, `profile`, and
+     `https://www.googleapis.com/auth/calendar.events`.
+   - Domain verification: if you plan to use a custom domain (e.g. `meet.example.com`), verify it
+     under **Branding** so Google lets you list the domain on the consent screen.
+3. APIs & Services → Library → enable **Google Calendar API** (and **People API** if you later use
+   profile data beyond basic fields).
+4. APIs & Services → Credentials → Create Credentials → OAuth client ID → **Web application**:
+   - Authorized redirect URI: `<BASE_URL>/oauth2/callback` (e.g.
+     `https://meet.example.com/oauth2/callback`).
+   - Authorized JavaScript origin: `<BASE_URL>` (e.g. `https://meet.example.com`).
+
+### Store the OAuth client values
+1. After creating the client, download the JSON or copy the **Client ID** and **Client secret**.
+2. Map the values into `.env`:
+   - `GOOGLE_CLIENT_ID` → `client_id` from the JSON.
+   - `GOOGLE_CLIENT_SECRET` → `client_secret`.
+   - `GOOGLE_CALLBACK_URL` should match the redirect URI you configured in step 4.
+3. For local development, add an additional redirect URI:
+   - `http://localhost:3000/oauth2/callback`
+   - Set `GOOGLE_CALLBACK_URL=http://localhost:3000/oauth2/callback` in `.env.local` or a separate
+     `.env.dev` file when running locally.
+4. If you rotate credentials later, generate a new client in Google Cloud and update the three
+   environment variables before restarting the server.
+
+### Generate refresh tokens for the app
+1. After the server is running with the new client ID/secret, sign in once through the app.
+2. Grant the requested Calendar scope during consent; the server will store the refresh token
+   securely in SQLite. No additional manual token exchange is required.
 
 ## Configuration (.env)
 Copy `.env.example` to `.env` and fill in values:
