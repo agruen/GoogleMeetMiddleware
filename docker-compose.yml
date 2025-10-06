@@ -1,0 +1,27 @@
+version: "3.9"
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: google-meet-middleware:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DB_FILE=/data/app.sqlite
+      - SESSION_DB_FILE=/data/sessions.sqlite
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  data:
+    driver: local

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="/public/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Hello, <%= user.firstName %>!</h1>
+      <p>Your personal meet link:</p>
+      <p><a class="link" href="<%= personalUrl %>"><%= personalUrl %></a></p>
+      <form action="/logout" method="post">
+        <button class="button" type="submit">Log out</button>
+      </form>
+    </main>
+  </body>
+  </html>
+

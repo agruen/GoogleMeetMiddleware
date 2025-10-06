@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Waiting for host…</title>
+    <link rel="stylesheet" href="/public/styles.css" />
+    <script>
+      function startSSE() {
+        const es = new EventSource('/api/wait/<%= slug %>/stream');
+        es.addEventListener('active', (ev) => {
+          try {
+            const data = JSON.parse(ev.data);
+            if (data && data.meetUrl) {
+              window.location.href = data.meetUrl;
+            }
+          } catch (e) {}
+        });
+        es.onerror = () => {
+          // Let EventSource auto-reconnect; do nothing.
+        };
+      }
+      window.addEventListener('load', startSSE);
+    </script>
+  </head>
+  <body>
+    <main class="container">
+      <h1>Waiting for host…</h1>
+      <p>Please keep this tab open. You will be redirected when the host joins.</p>
+    </main>
+  </body>
+  </html>
