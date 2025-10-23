@@ -4,6 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      network: host
     image: google-meet-middleware:latest
     restart: unless-stopped
     environment:
