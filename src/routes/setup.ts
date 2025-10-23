@@ -1,0 +1,91 @@
+import { Router, Request, Response } from 'express';
+import {
+  getCurrentConfig,
+  saveConfig,
+  validateConfig,
+  generateSessionSecret,
+  type AppConfig,
+} from '../utils/config-manager.js';
+
+const router = Router();
+
+/**
+ * GET /setup
+ * Show the setup form
+ */
+router.get('/setup', (_req: Request, res: Response) => {
+  const config = getCurrentConfig();
+  res.render('setup', { config, errors: null });
+});
+
+/**
+ * GET /setup/help
+ * Show setup instructions
+ */
+router.get('/setup/help', (_req: Request, res: Response) => {
+  res.render('setup-help');
+});
+
+/**
+ * POST /setup/save
+ * Save the configuration and complete setup
+ */
+router.post('/setup/save', (req: Request, res: Response) => {
+  const formData = req.body;
+
+  // Build config object
+  const config: AppConfig = {
+    BASE_URL: formData.BASE_URL?.trim() || '',
+    ALLOWED_DOMAIN: formData.ALLOWED_DOMAIN?.trim() || '',
+    GOOGLE_CLIENT_ID: formData.GOOGLE_CLIENT_ID?.trim() || '',
+    GOOGLE_CLIENT_SECRET: formData.GOOGLE_CLIENT_SECRET?.trim() || '',
+    GOOGLE_CALLBACK_URL: formData.GOOGLE_CALLBACK_URL?.trim() || '',
+    SESSION_SECRET: formData.SESSION_SECRET?.trim() || generateSessionSecret(),
+    PORT: formData.PORT?.trim() || '3000',
+    MEET_WINDOW_MS: formData.MEET_WINDOW_MS?.trim() || '300000',
+    DB_FILE: formData.DB_FILE?.trim() || 'app.sqlite',
+    SESSION_DB_FILE: formData.SESSION_DB_FILE?.trim() || 'sessions.sqlite',
+    NODE_ENV: formData.NODE_ENV?.trim() || 'production',
+  };
+
+  // Auto-generate callback URL if not provided or invalid
+  if (!config.GOOGLE_CALLBACK_URL || config.GOOGLE_CALLBACK_URL === '') {
+    try {
+      const baseUrl = new URL(config.BASE_URL);
+      config.GOOGLE_CALLBACK_URL = `${baseUrl.origin}/oauth2/callback`;
+    } catch (err) {
+      // Will be caught by validation
+    }
+  }
+
+  // Validate configuration
+  const validation = validateConfig(config);
+
+  if (!validation.valid) {
+    // Re-render form with errors
+    return res.render('setup', {
+      config,
+      errors: validation.errors,
+    });
+  }
+
+  try {
+    // Save configuration
+    saveConfig(config);
+
+    // Show success page
+    const isDocker = process.env.DOCKER === 'true' || process.env.NODE_ENV === 'production';
+    res.render('setup-success', {
+      baseUrl: config.BASE_URL,
+      isDocker,
+    });
+  } catch (err) {
+    console.error('Failed to save configuration:', err);
+    res.render('setup', {
+      config,
+      errors: ['Failed to save configuration. Please check file permissions.'],
+    });
+  }
+});
+
+export default router;
