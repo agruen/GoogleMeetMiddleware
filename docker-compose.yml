@@ -6,15 +6,16 @@ services:
       dockerfile: Dockerfile
     image: google-meet-middleware:latest
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
+      - DOCKER=true
+      - NODE_ENV=production
       - DB_FILE=/data/app.sqlite
       - SESSION_DB_FILE=/data/sessions.sqlite
     ports:
       - "3000:3000"
     volumes:
       - ./data:/data
+      - ./config:/app/config
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:3000/healthz"]
       interval: 30s
@@ -24,4 +25,6 @@ services:
 
 volumes:
   data:
+    driver: local
+  config:
     driver: local

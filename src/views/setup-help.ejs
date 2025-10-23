@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Setup Instructions - Google Meet Middleware</title>
+  <link rel="stylesheet" href="/public/styles.css">
+  <style>
+    .help-container {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 2rem;
+      background: #1a1a1a;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    .help-header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid #333;
+    }
+    .help-header h1 {
+      color: #4285f4;
+      margin-bottom: 0.5rem;
+    }
+    .help-section {
+      margin-bottom: 2.5rem;
+    }
+    .help-section h2 {
+      color: #fff;
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
+    }
+    .help-section h3 {
+      color: #ccc;
+      margin: 1.5rem 0 1rem 0;
+      font-size: 1.2rem;
+    }
+    .help-section p, .help-section li {
+      color: #aaa;
+      line-height: 1.6;
+      margin-bottom: 0.75rem;
+    }
+    .help-section ol, .help-section ul {
+      margin-left: 1.5rem;
+    }
+    .help-section code {
+      background: #2a2a2a;
+      padding: 0.2rem 0.5rem;
+      border-radius: 3px;
+      color: #4285f4;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 0.9rem;
+    }
+    .help-section pre {
+      background: #2a2a2a;
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+      border: 1px solid #444;
+    }
+    .help-section pre code {
+      background: none;
+      padding: 0;
+    }
+    .warning-box {
+      background: #3d2a1a;
+      border-left: 4px solid #ff9800;
+      color: #ffb74d;
+      padding: 1rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+    }
+    .info-box {
+      background: #1a2a3d;
+      border-left: 4px solid #4285f4;
+      color: #8cf;
+      padding: 1rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+    }
+    .success-box {
+      background: #1a3d1a;
+      border-left: 4px solid #34a853;
+      color: #8f8;
+      padding: 1rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+    }
+    .btn-back {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      background: #4285f4;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .btn-back:hover {
+      background: #357ae8;
+    }
+    .step-number {
+      display: inline-block;
+      width: 2rem;
+      height: 2rem;
+      background: #4285f4;
+      color: #fff;
+      text-align: center;
+      line-height: 2rem;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="help-container">
+    <div class="help-header">
+      <h1>📚 Google Cloud Setup Instructions</h1>
+      <p>Follow these steps to configure Google OAuth 2.0 for your application</p>
+    </div>
+
+    <div class="help-section">
+      <h2>🎯 Overview</h2>
+      <p>
+        This application requires Google OAuth 2.0 credentials to authenticate users and create Google Meet links.
+        You'll need to set up a project in Google Cloud Console and enable the necessary APIs.
+      </p>
+      <div class="info-box">
+        <strong>⏱️ Estimated time:</strong> 10-15 minutes<br>
+        <strong>💰 Cost:</strong> Free (Google Workspace required for users)
+      </div>
+    </div>
+
+    <div class="help-section">
+      <h2>📋 Prerequisites</h2>
+      <ul>
+        <li>A Google Workspace account (for the domain restriction feature)</li>
+        <li>Admin access to Google Cloud Console (or ability to create projects)</li>
+        <li>The Base URL where this application will be hosted</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <h2>🚀 Step-by-Step Instructions</h2>
+
+      <h3><span class="step-number">1</span> Create a Google Cloud Project</h3>
+      <ol>
+        <li>Go to <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a></li>
+        <li>Click on the project dropdown at the top of the page</li>
+        <li>Click <strong>"New Project"</strong></li>
+        <li>Enter a project name (e.g., "Meet Middleware")</li>
+        <li>Click <strong>"Create"</strong></li>
+        <li>Wait for the project to be created, then select it from the project dropdown</li>
+      </ol>
+
+      <h3><span class="step-number">2</span> Enable Required APIs</h3>
+      <ol>
+        <li>In the Google Cloud Console, go to <strong>"APIs & Services" → "Library"</strong></li>
+        <li>Search for <strong>"Google Calendar API"</strong></li>
+        <li>Click on it and press <strong>"Enable"</strong></li>
+        <li>Wait for the API to be enabled</li>
+      </ol>
+
+      <h3><span class="step-number">3</span> Configure OAuth Consent Screen</h3>
+      <ol>
+        <li>Go to <strong>"APIs & Services" → "OAuth consent screen"</strong></li>
+        <li>Select <strong>"Internal"</strong> (for Google Workspace) or <strong>"External"</strong></li>
+        <li>Click <strong>"Create"</strong></li>
+        <li>Fill in the required fields:
+          <ul>
+            <li><strong>App name:</strong> Google Meet Middleware</li>
+            <li><strong>User support email:</strong> Your email</li>
+            <li><strong>Developer contact email:</strong> Your email</li>
+          </ul>
+        </li>
+        <li>Click <strong>"Save and Continue"</strong></li>
+        <li>On the "Scopes" page, click <strong>"Add or Remove Scopes"</strong></li>
+        <li>Filter and add these scopes:
+          <ul>
+            <li><code>openid</code></li>
+            <li><code>userinfo.email</code></li>
+            <li><code>userinfo.profile</code></li>
+            <li><code>calendar.events</code></li>
+          </ul>
+        </li>
+        <li>Click <strong>"Update"</strong> then <strong>"Save and Continue"</strong></li>
+        <li>Review and click <strong>"Back to Dashboard"</strong></li>
+      </ol>
+
+      <div class="warning-box">
+        <strong>⚠️ Important:</strong> If you selected "Internal", only users from your Google Workspace domain will be able to log in.
+        If you selected "External", you'll need to add test users or publish the app (which requires verification).
+      </div>
+
+      <h3><span class="step-number">4</span> Create OAuth 2.0 Credentials</h3>
+      <ol>
+        <li>Go to <strong>"APIs & Services" → "Credentials"</strong></li>
+        <li>Click <strong>"Create Credentials"</strong> → <strong>"OAuth client ID"</strong></li>
+        <li>Select <strong>"Web application"</strong> as the application type</li>
+        <li>Enter a name (e.g., "Meet Middleware Web Client")</li>
+        <li>Under <strong>"Authorized JavaScript origins"</strong>, click <strong>"Add URI"</strong> and enter your Base URL:
+          <ul>
+            <li>For local testing: <code>http://localhost:3000</code></li>
+            <li>For production: <code>https://meet.example.com</code> (your actual domain)</li>
+          </ul>
+        </li>
+        <li>Under <strong>"Authorized redirect URIs"</strong>, click <strong>"Add URI"</strong> and enter:
+          <ul>
+            <li>For local testing: <code>http://localhost:3000/oauth2/callback</code></li>
+            <li>For production: <code>https://meet.example.com/oauth2/callback</code></li>
+          </ul>
+        </li>
+        <li>Click <strong>"Create"</strong></li>
+        <li>A popup will appear with your <strong>Client ID</strong> and <strong>Client Secret</strong></li>
+        <li><strong>Copy both values</strong> - you'll need them for the setup form!</li>
+      </ol>
+
+      <div class="success-box">
+        <strong>✅ Done!</strong> You now have your Google OAuth credentials. Copy the Client ID and Client Secret and paste them into the setup form.
+      </div>
+
+      <h3><span class="step-number">5</span> Complete the Setup Form</h3>
+      <ol>
+        <li>Return to the setup form</li>
+        <li>Enter your <strong>Base URL</strong> (e.g., <code>http://localhost:3000</code> or <code>https://meet.example.com</code>)</li>
+        <li>Enter your <strong>Allowed Domain</strong> (e.g., <code>yourcompany.com</code>)</li>
+        <li>Paste the <strong>Google Client ID</strong> you copied earlier</li>
+        <li>Paste the <strong>Google Client Secret</strong> you copied earlier</li>
+        <li>The callback URL will be auto-generated</li>
+        <li>A session secret will be auto-generated (or click "Generate Random Secret")</li>
+        <li>Click <strong>"Save Configuration & Start Application"</strong></li>
+      </ol>
+    </div>
+
+    <div class="help-section">
+      <h2>🔍 Troubleshooting</h2>
+
+      <h3>Error: "Access blocked: Authorization Error"</h3>
+      <p>This means your OAuth consent screen is not properly configured or the user is not authorized.</p>
+      <ul>
+        <li>If using "Internal" mode: Make sure the user is part of your Google Workspace</li>
+        <li>If using "External" mode: Add the user as a test user in the OAuth consent screen</li>
+        <li>Verify that all required scopes are added</li>
+      </ul>
+
+      <h3>Error: "redirect_uri_mismatch"</h3>
+      <p>The redirect URI doesn't match what's configured in Google Cloud Console.</p>
+      <ul>
+        <li>Check that your Base URL in the setup form matches the authorized JavaScript origin</li>
+        <li>Ensure the callback URL (<code>/oauth2/callback</code>) is in the authorized redirect URIs</li>
+        <li>Check for trailing slashes and http vs https mismatches</li>
+      </ul>
+
+      <h3>Error: "Calendar API has not been enabled"</h3>
+      <p>The Google Calendar API is not enabled for your project.</p>
+      <ul>
+        <li>Go to APIs & Services → Library</li>
+        <li>Search for "Google Calendar API"</li>
+        <li>Click "Enable"</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <h2>🔗 Useful Links</h2>
+      <ul>
+        <li><a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a></li>
+        <li><a href="https://developers.google.com/identity/protocols/oauth2" target="_blank">Google OAuth 2.0 Documentation</a></li>
+        <li><a href="https://developers.google.com/calendar/api" target="_blank">Google Calendar API Documentation</a></li>
+      </ul>
+    </div>
+
+    <div style="text-align: center; margin-top: 3rem;">
+      <a href="/setup" class="btn-back">← Back to Setup Form</a>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Setup Complete - Google Meet Middleware</title>
+  <link rel="stylesheet" href="/public/styles.css">
+  <style>
+    .success-container {
+      max-width: 700px;
+      margin: 3rem auto;
+      padding: 2rem;
+      background: #1a1a1a;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+    .success-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+    .success-container h1 {
+      color: #34a853;
+      margin-bottom: 1rem;
+    }
+    .success-container p {
+      color: #aaa;
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+    .restart-box {
+      background: #2a2a2a;
+      border: 2px solid #4285f4;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin: 2rem 0;
+    }
+    .restart-box h2 {
+      color: #4285f4;
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+    }
+    .restart-box code {
+      display: block;
+      background: #1a1a1a;
+      padding: 1rem;
+      border-radius: 4px;
+      color: #fff;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      margin: 1rem 0;
+      font-size: 0.95rem;
+    }
+    .info-list {
+      text-align: left;
+      margin: 1.5rem 0;
+    }
+    .info-list li {
+      color: #aaa;
+      margin: 0.75rem 0;
+      padding-left: 1.5rem;
+      position: relative;
+    }
+    .info-list li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #34a853;
+      font-weight: bold;
+    }
+    .btn-restart {
+      display: inline-block;
+      padding: 1rem 2rem;
+      background: #34a853;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 1.1rem;
+      transition: background 0.2s;
+      border: none;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+    .btn-restart:hover {
+      background: #2d8e47;
+    }
+  </style>
+</head>
+<body>
+  <div class="success-container">
+    <div class="success-icon">✅</div>
+    <h1>Setup Complete!</h1>
+    <p>Your configuration has been saved successfully. The application is now configured and ready to use.</p>
+
+    <div class="restart-box">
+      <h2>📋 Next Steps</h2>
+      <p style="color: #ccc;">To apply the configuration, please restart the application:</p>
+
+      <% if (isDocker) { %>
+        <strong style="color: #fff;">If running with Docker:</strong>
+        <code>docker-compose restart</code>
+        <p style="color: #999; font-size: 0.9rem; margin-top: 0.5rem;">Or, restart the container from your Docker interface</p>
+      <% } else { %>
+        <strong style="color: #fff;">Restart the application:</strong>
+        <code>npm run dev</code>
+        <p style="color: #999; font-size: 0.9rem; margin-top: 0.5rem;">Or press Ctrl+C and start it again</p>
+      <% } %>
+    </div>
+
+    <div class="info-list">
+      <ul style="list-style: none; padding: 0;">
+        <li>Configuration saved to <code style="background: #2a2a2a; padding: 0.2rem 0.5rem; border-radius: 3px; color: #4285f4;">config/app-config.json</code></li>
+        <li>OAuth credentials configured</li>
+        <li>Session secret generated</li>
+        <li>Ready for first login</li>
+      </ul>
+    </div>
+
+    <p style="margin-top: 2rem; color: #888; font-size: 0.9rem;">
+      After restarting, visit <strong style="color: #4285f4;"><%= baseUrl %></strong> to log in
+    </p>
+
+    <button class="btn-restart" onclick="window.location.href='/'">
+      Go to Home Page
+    </button>
+  </div>
+
+  <script>
+    // Auto-refresh after 3 seconds to check if app has restarted
+    setTimeout(() => {
+      fetch('/healthz')
+        .then(() => {
+          // If healthz responds, the app might have restarted
+          // Show a message
+          const btn = document.querySelector('.btn-restart');
+          btn.textContent = '✅ App Ready - Click to Continue';
+          btn.style.background = '#4285f4';
+        })
+        .catch(() => {
+          // App not restarted yet, keep waiting
+        });
+    }, 3000);
+  </script>
+</body>
+</html>

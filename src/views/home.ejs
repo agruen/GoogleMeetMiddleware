@@ -5,9 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Meet Login</title>
     <link rel="stylesheet" href="/public/styles.css" />
+    <style>
+      .success-banner {
+        background: #1a3d1a;
+        border: 1px solid #34a853;
+        color: #8f8;
+        padding: 1rem;
+        border-radius: 4px;
+        margin-bottom: 2rem;
+        text-align: center;
+      }
+    </style>
   </head>
   <body>
     <main class="container">
+      <% if (typeof setupComplete !== 'undefined' && setupComplete) { %>
+        <div class="success-banner">
+          ✅ <strong>Setup Complete!</strong> Your application is now configured and ready to use.
+        </div>
+      <% } %>
       <h1>Google Meet Links</h1>
       <p>Sign in with your work Google account to get your personal Meet link.</p>
       <a class="button" href="/login">Sign in with Google</a>
