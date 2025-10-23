@@ -9,6 +9,7 @@ A minimal, production‑ready web app for generating on‑demand Google Meet lin
 - Sessions: express‑session + connect-sqlite3
 - UI: EJS templates with minimal CSS
 - Container: Dockerfile + docker-compose (ARM/Raspberry Pi‑friendly)
+- **🆕 Easy Setup Mode**: Web-based configuration interface for first-time setup
 
 ## Features
 - Google OAuth restricted to `ALLOWED_DOMAIN` (e.g., `workingpaper.co`).
@@ -34,13 +35,52 @@ config/
 tests/
 ```
 
+## 🚀 Quick Start (Recommended)
+
+The easiest way to get started is with the **web-based setup mode**:
+
+### 1. Start the Application
+```bash
+# With Docker (recommended)
+docker-compose up --build -d
+
+# Or locally with Node.js
+npm install
+npm run dev
+```
+
+### 2. Open Setup Interface
+Visit **http://localhost:3000** in your browser. Since no configuration exists yet, you'll automatically be redirected to the setup page.
+
+### 3. Follow the Setup Wizard
+The setup interface will guide you through:
+- Configuring your base URL and allowed domain
+- Setting up Google OAuth credentials (with detailed instructions)
+- Generating a secure session secret
+- Optional advanced settings
+
+### 4. Complete Setup
+After saving your configuration:
+- **Docker**: Restart with `docker-compose restart`
+- **Local**: Restart the app (Ctrl+C and `npm run dev`)
+
+That's it! Your application is ready to use. Visit http://localhost:3000 to log in.
+
+---
+
 ## Prerequisites
 - Google Cloud project with OAuth consent screen configured for your Workspace.
 - OAuth 2.0 Client ID (Web app) + secret.
 - Calendar API enabled for the project.
-- Redirect URI pointing to your app’s callback, e.g. `https://meet.example.com/oauth2/callback`.
+- Redirect URI pointing to your app's callback, e.g. `https://meet.example.com/oauth2/callback`.
 
-## Google Cloud Setup
+**💡 Don't have Google Cloud set up yet?** No problem! The setup interface includes a detailed guide with step-by-step instructions. Just start the app and click "Setup Instructions" when you get to the setup page.
+
+## Manual Configuration (Advanced)
+
+If you prefer to configure manually or already have your credentials ready:
+
+### Google Cloud Setup
 If you have never configured Google Cloud before, follow the step-by-step guide in
 `docs/google-cloud-setup.md`. It covers creating the project, enabling the Calendar API, configuring
 the OAuth consent screen, and mapping credentials into your environment variables.
@@ -56,7 +96,7 @@ Already familiar with the basics? Here's the fast checklist:
   `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL`).
 - Launch the app and sign in once to persist the encrypted refresh token in SQLite.
 
-## Configuration (.env)
+### Configuration (.env)
 Copy `.env.example` to `.env` and fill in values:
 
 - `BASE_URL`: Public URL (e.g., `https://meet.example.com`).
@@ -67,15 +107,15 @@ Copy `.env.example` to `.env` and fill in values:
 - `DB_FILE` and `SESSION_DB_FILE`: SQLite file paths (overridden in compose to `/data/*`).
 
 ## Local Development
-```
-npm i
+```bash
+npm install
 npm run dev
-# visit http://localhost:3000
+# Visit http://localhost:3000
 ```
 
-## Docker (Raspberry Pi / ARM)
-Build and run with compose:
-```
+## Docker Deployment
+Build and run with Docker Compose:
+```bash
 docker-compose up --build -d
 ```
 - Uses `node:20-bookworm-slim` with native build tools in builder stage.

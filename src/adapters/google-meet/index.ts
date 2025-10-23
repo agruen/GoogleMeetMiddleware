@@ -35,8 +35,10 @@ export async function getTokensFromCode(code: string) {
 }
 
 export async function getUserInfo(accessToken: string) {
-  const oauth2 = google.oauth2('v2');
-  const res = await oauth2.userinfo.get({ access_token: accessToken });
+  const oauth2Client = new google.auth.OAuth2();
+  oauth2Client.setCredentials({ access_token: accessToken });
+  const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+  const res = await oauth2.userinfo.get();
   return res.data; // { id, email, given_name, family_name, picture, ... }
 }
 

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Meet Middleware - Initial Setup</title>
+  <link rel="stylesheet" href="/public/styles.css">
+  <style>
+    .setup-container {
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 2rem;
+      background: #1a1a1a;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    .setup-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .setup-header h1 {
+      color: #4285f4;
+      margin-bottom: 0.5rem;
+    }
+    .setup-header p {
+      color: #aaa;
+      font-size: 0.95rem;
+    }
+    .form-section {
+      margin-bottom: 2rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid #333;
+    }
+    .form-section:last-child {
+      border-bottom: none;
+    }
+    .form-section h2 {
+      color: #fff;
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .form-section p {
+      color: #aaa;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    .form-group label {
+      display: block;
+      color: #fff;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 0.75rem;
+      background: #2a2a2a;
+      border: 1px solid #444;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 0.95rem;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
+    .form-group input:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #4285f4;
+    }
+    .form-group small {
+      display: block;
+      color: #888;
+      margin-top: 0.25rem;
+      font-size: 0.85rem;
+    }
+    .form-group .hint {
+      color: #4285f4;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+    .btn-generate {
+      background: #34a853;
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+    .btn-generate:hover {
+      background: #2d8e47;
+    }
+    .error-box {
+      background: #3d1a1a;
+      border: 1px solid #a94442;
+      color: #f88;
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 1.5rem;
+    }
+    .error-box ul {
+      margin: 0.5rem 0 0 1.5rem;
+      padding: 0;
+    }
+    .success-box {
+      background: #1a3d1a;
+      border: 1px solid #449944;
+      color: #8f8;
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 1.5rem;
+    }
+    .submit-btn {
+      width: 100%;
+      padding: 1rem;
+      background: #4285f4;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .submit-btn:hover {
+      background: #357ae8;
+    }
+    .submit-btn:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+    .info-box {
+      background: #1a2a3d;
+      border: 1px solid #4285f4;
+      color: #8cf;
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 1.5rem;
+    }
+    .info-box a {
+      color: #4285f4;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="setup-container">
+    <div class="setup-header">
+      <h1>🚀 Google Meet Middleware Setup</h1>
+      <p>Configure your application to get started</p>
+    </div>
+
+    <% if (errors && errors.length > 0) { %>
+      <div class="error-box">
+        <strong>Please fix the following errors:</strong>
+        <ul>
+          <% errors.forEach(error => { %>
+            <li><%= error %></li>
+          <% }); %>
+        </ul>
+      </div>
+    <% } %>
+
+    <div class="info-box">
+      <strong>📋 Before you begin:</strong> You'll need to create a Google Cloud project and OAuth 2.0 credentials.
+      <a href="/setup/help" target="_blank">Click here for setup instructions</a>
+    </div>
+
+    <form method="POST" action="/setup/save">
+      <!-- Basic Configuration -->
+      <div class="form-section">
+        <h2>📍 Basic Configuration</h2>
+        <p>Configure the basic settings for your application.</p>
+
+        <div class="form-group">
+          <label for="BASE_URL">Base URL *</label>
+          <input
+            type="text"
+            id="BASE_URL"
+            name="BASE_URL"
+            value="<%= config.BASE_URL %>"
+            placeholder="http://localhost:3000"
+            required
+          >
+          <small>The public URL where this application will be accessible (e.g., https://meet.example.com)</small>
+        </div>
+
+        <div class="form-group">
+          <label for="ALLOWED_DOMAIN">Allowed Domain *</label>
+          <input
+            type="text"
+            id="ALLOWED_DOMAIN"
+            name="ALLOWED_DOMAIN"
+            value="<%= config.ALLOWED_DOMAIN %>"
+            placeholder="example.com"
+            required
+          >
+          <small>Only users with email addresses from this domain can log in (e.g., yourcompany.com)</small>
+        </div>
+
+        <div class="form-group">
+          <label for="PORT">Port</label>
+          <input
+            type="number"
+            id="PORT"
+            name="PORT"
+            value="<%= config.PORT %>"
+            placeholder="3000"
+          >
+          <small>Port for the application to listen on (default: 3000)</small>
+        </div>
+      </div>
+
+      <!-- Google OAuth Configuration -->
+      <div class="form-section">
+        <h2>🔐 Google OAuth 2.0 Configuration</h2>
+        <p>You need to create OAuth 2.0 credentials in Google Cloud Console.
+          <a href="/setup/help" target="_blank">See instructions here</a>
+        </p>
+
+        <div class="form-group">
+          <label for="GOOGLE_CLIENT_ID">Google Client ID *</label>
+          <input
+            type="text"
+            id="GOOGLE_CLIENT_ID"
+            name="GOOGLE_CLIENT_ID"
+            value="<%= config.GOOGLE_CLIENT_ID %>"
+            placeholder="xxxxx.apps.googleusercontent.com"
+            required
+          >
+          <small>From Google Cloud Console → Credentials → OAuth 2.0 Client ID</small>
+        </div>
+
+        <div class="form-group">
+          <label for="GOOGLE_CLIENT_SECRET">Google Client Secret *</label>
+          <input
+            type="text"
+            id="GOOGLE_CLIENT_SECRET"
+            name="GOOGLE_CLIENT_SECRET"
+            value="<%= config.GOOGLE_CLIENT_SECRET %>"
+            placeholder="GOCSPX-xxxxx"
+            required
+          >
+          <small>From Google Cloud Console → Credentials → OAuth 2.0 Client Secret</small>
+        </div>
+
+        <div class="form-group">
+          <label for="GOOGLE_CALLBACK_URL">Google Callback URL</label>
+          <input
+            type="text"
+            id="GOOGLE_CALLBACK_URL"
+            name="GOOGLE_CALLBACK_URL"
+            value="<%= config.GOOGLE_CALLBACK_URL %>"
+            placeholder="http://localhost:3000/oauth2/callback"
+            readonly
+          >
+          <small>This will be auto-generated from your Base URL. Add this to your OAuth 2.0 authorized redirect URIs in Google Cloud Console.</small>
+        </div>
+      </div>
+
+      <!-- Security Configuration -->
+      <div class="form-section">
+        <h2>🔒 Security Configuration</h2>
+        <p>Configure security settings for session management.</p>
+
+        <div class="form-group">
+          <label for="SESSION_SECRET">Session Secret *</label>
+          <input
+            type="text"
+            id="SESSION_SECRET"
+            name="SESSION_SECRET"
+            value="<%= config.SESSION_SECRET %>"
+            placeholder="auto-generated-secret"
+            required
+          >
+          <small>A random string used to sign session cookies (minimum 32 characters)</small>
+          <button type="button" class="btn-generate" onclick="generateSecret()">🎲 Generate Random Secret</button>
+        </div>
+      </div>
+
+      <!-- Advanced Configuration -->
+      <div class="form-section">
+        <h2>⚙️ Advanced Configuration (Optional)</h2>
+        <p>These settings have sensible defaults but can be customized.</p>
+
+        <div class="form-group">
+          <label for="MEET_WINDOW_MS">Meet Link Validity (milliseconds)</label>
+          <input
+            type="number"
+            id="MEET_WINDOW_MS"
+            name="MEET_WINDOW_MS"
+            value="<%= config.MEET_WINDOW_MS %>"
+            placeholder="300000"
+          >
+          <small>How long a Meet link remains valid in milliseconds (default: 300000 = 5 minutes)</small>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn">💾 Save Configuration & Start Application</button>
+    </form>
+  </div>
+
+  <script>
+    function generateSecret() {
+      const array = new Uint8Array(32);
+      crypto.getRandomValues(array);
+      const secret = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+      document.getElementById('SESSION_SECRET').value = secret;
+    }
+
+    // Auto-update callback URL when base URL changes
+    document.getElementById('BASE_URL').addEventListener('input', function() {
+      const baseUrl = this.value.trim();
+      if (baseUrl) {
+        try {
+          const url = new URL(baseUrl);
+          document.getElementById('GOOGLE_CALLBACK_URL').value = `${url.origin}/oauth2/callback`;
+        } catch (e) {
+          // Invalid URL, ignore
+        }
+      }
+    });
+
+    // Auto-generate session secret if empty on page load
+    window.addEventListener('DOMContentLoaded', function() {
+      const sessionSecret = document.getElementById('SESSION_SECRET').value;
+      if (!sessionSecret || sessionSecret.trim() === '') {
+        generateSecret();
+      }
+
+      // Trigger callback URL generation if BASE_URL is set
+      const baseUrl = document.getElementById('BASE_URL').value;
+      if (baseUrl) {
+        document.getElementById('BASE_URL').dispatchEvent(new Event('input'));
+      }
+    });
+  </script>
+</body>
+</html>
