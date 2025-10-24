@@ -67,50 +67,88 @@ If you plan to host the app on a custom domain such as `https://meet.example.com
 7. Click **Create**.
 8. A modal appears displaying your **Client ID** and **Client secret**. Click **Download JSON** and store it securely, or copy the values to a password manager. You can always return to the credential later to regenerate the secret if needed.
 
-## 6. Map values into environment variables
-Copy `.env.example` in the repository to `.env` (and `.env.local` for local overrides) and populate the following entries using the credential you created.
+## 6. Configure the application
+
+You have two options for providing these credentials to the application:
+
+### Option A: Web-based Setup (Recommended)
+1. Start the application (see Quick Start in README.md)
+2. Visit the application URL in your browser
+3. You'll be automatically redirected to the setup wizard
+4. Fill in the form with the values from the OAuth credential you created:
+   - `BASE_URL`: The public base URL (e.g., `https://meet.example.com`)
+   - `ALLOWED_DOMAIN`: Your Workspace domain (e.g., `yourcompany.com`)
+   - `GOOGLE_CLIENT_ID`: The client ID from Google Cloud
+   - `GOOGLE_CLIENT_SECRET`: The client secret from Google Cloud
+   - `GOOGLE_CALLBACK_URL`: The redirect URI (e.g., `https://meet.example.com/oauth2/callback`)
+   - `SESSION_SECRET`: Click "Generate" to create a secure random secret
+5. Click "Save Configuration" and restart the application
+
+The setup wizard will create a `config/app-config.json` file with your settings.
+
+### Option B: Manual Configuration (Advanced)
+If you prefer manual configuration, you can either:
+
+**For Docker deployments**: Create `config/app-config.json` manually (see README.md for the JSON format).
+
+**For local development**: Copy `.env.example` to `.env` and populate these values:
 
 | Variable | Value | Example |
 | --- | --- | --- |
-| `BASE_URL` | The public base URL for the deployed app | `https://meet.example.com` |
+| `BASE_URL` | The public base URL for the deployed app | `http://localhost:3000` (dev) or `https://meet.example.com` (prod) |
 | `ALLOWED_DOMAIN` | Workspace domain allowed to sign in | `yourcompany.com` |
 | `SESSION_SECRET` | 32+ character random string | generate with a password manager |
 | `GOOGLE_CLIENT_ID` | The client ID from Google Cloud | `1234.apps.googleusercontent.com` |
 | `GOOGLE_CLIENT_SECRET` | The client secret from Google Cloud | `GOCSPX-...` |
-| `GOOGLE_CALLBACK_URL` | The redirect URI you set above | `https://meet.example.com/oauth2/callback` |
+| `GOOGLE_CALLBACK_URL` | The redirect URI you set above | `http://localhost:3000/oauth2/callback` (dev) |
 | `MEET_WINDOW_MS` | (Optional) window in milliseconds | `300000` for 5 minutes |
-| `DB_FILE` / `SESSION_DB_FILE` | SQLite file paths | For Docker, leave defaults |
+| `DB_FILE` / `SESSION_DB_FILE` | SQLite file paths | `app.sqlite` (local) or `/data/app.sqlite` (Docker) |
 
-For local development, set `BASE_URL=http://localhost:3000` and `GOOGLE_CALLBACK_URL=http://localhost:3000/oauth2/callback` in your local `.env` file.
-
-## 7. Run the app locally to confirm
-1. Install dependencies: `npm install`.
-2. Start the dev server: `npm run dev`.
-3. Visit <http://localhost:3000> and click **Sign in with Google**.
+## 7. Test the application
+1. If not already running, start the app:
+   - **Docker**: `docker compose up -d`
+   - **Local**: `npm install && npm run dev`
+2. Visit the app in your browser:
+   - **Docker** (default): <http://localhost:8014>
+   - **Local**: <http://localhost:3000>
+3. If you used the web-based setup, the configuration is already complete. Click **Sign in with Google**.
 4. Sign in with a Workspace account on the allowed domain and approve the requested scopes.
-5. After consent, you should be redirected into the app. A refresh token is stored automatically in the SQLite database.
+5. After consent, you should be redirected to your dashboard. A refresh token is stored automatically in the SQLite database.
 
 If you encounter errors during login:
-- `redirect_uri_mismatch`: Double-check that the URI in Google Cloud matches `GOOGLE_CALLBACK_URL` exactly (including protocol and trailing slash).
+- `redirect_uri_mismatch`: Double-check that the URI in Google Cloud matches `GOOGLE_CALLBACK_URL` exactly (including protocol and no trailing slash).
 - `Error 403: access_denied`: Make sure the signing-in user belongs to `ALLOWED_DOMAIN` and was added as a test user if the app type is External.
 - `unauthorized_client`: Verify you created a **Web application** client, not another type.
+- `Missing required env var`: Restart the application after saving configuration (`docker compose restart app` for Docker).
 
 ## 8. Deploying in production
 1. Provision hosting for the Node.js app (for example Docker behind nginx as described in the README).
-2. Set the environment variables from step 6 in your hosting environment (Docker secrets, Kubernetes config map, etc.).
-3. Ensure the reverse proxy forwards the `X-Forwarded-Proto` header so secure cookies are issued correctly.
-4. Confirm that the public HTTPS URL matches `BASE_URL`.
+2. Configure the application using one of these methods:
+   - **Recommended**: Use the web-based setup wizard on first run, which creates `config/app-config.json`
+   - **Alternative**: Set environment variables directly (see README.md for the full list)
+   - **Alternative**: Manually create `config/app-config.json` (see README.md for the JSON format)
+3. For Docker deployments:
+   - Ensure the `./config` volume is mounted so configuration persists across container restarts
+   - Ensure the `./data` volume is mounted for database persistence
+   - Update `config/app-config.json` to use absolute paths: `DB_FILE=/data/app.sqlite` and `SESSION_DB_FILE=/data/sessions.sqlite`
+4. Ensure the reverse proxy forwards the `X-Forwarded-Proto` header so secure cookies are issued correctly.
+5. Confirm that the public HTTPS URL matches `BASE_URL` in your configuration.
 
 When deploying for the first time, sign in once as a host user to seed the encrypted refresh token. Subsequent logins reuse the stored token until revoked.
 
 ## 9. Rotating credentials
-- If you regenerate the client secret, update `GOOGLE_CLIENT_SECRET` and restart the application.
-- To revoke all refresh tokens, delete the rows in the `tokens` table (or the SQLite database file) and have users sign in again.
+- If you regenerate the client secret in Google Cloud:
+  - Update `GOOGLE_CLIENT_SECRET` in your `.env` file or `config/app-config.json`
+  - Restart the application: `docker compose restart app` (Docker) or Ctrl+C and `npm run dev` (local)
+- To revoke all refresh tokens, delete the `data/app.sqlite` database file and have users sign in again.
+- To rotate `SESSION_SECRET`, update it in your configuration and restart. Note that this will invalidate all existing sessions.
 
 ## 10. Troubleshooting reference
-- **Need multiple environments (dev/staging/prod):** Create a separate OAuth client per environment so that callback URLs stay simple. Copy each set of credentials into the matching `.env` file.
+- **Need multiple environments (dev/staging/prod):** Create a separate OAuth client per environment so that callback URLs stay simple. Use separate `.env` files or `config/app-config.json` files for each environment.
 - **Waiting for domain verification:** DNS changes can take up to an hour. Verification happens automatically once Google sees the TXT record.
 - **Accidentally created in the wrong project:** Open the project selector, switch to the intended project, and recreate the credentials. Delete unused credentials to avoid confusion.
-- **Lost client secret:** Edit the OAuth client in Google Cloud and click **Reset secret**. Remember to update environment variables wherever the app runs.
+- **Lost client secret:** Edit the OAuth client in Google Cloud and click **Reset secret**. Remember to update your `.env` file or `config/app-config.json` and restart the app.
+- **Configuration not persisting in Docker:** Ensure the `./config` directory exists and has correct permissions. The setup wizard creates files as the container user (node), so the host user must be able to read them.
+- **Database permission errors in Docker:** Ensure `DB_FILE` and `SESSION_DB_FILE` in `config/app-config.json` use absolute paths (`/data/app.sqlite`, not `app.sqlite`) to match the volume mount.
 
 Once the above steps are complete, your Google Cloud project is ready and the application can authenticate users and create Google Meet links through the Calendar API.

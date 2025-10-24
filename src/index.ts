@@ -7,6 +7,10 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
 import SQLiteStoreFactory from 'connect-sqlite3';
+import { rateLimit } from 'express-rate-limit';
+// @ts-ignore - Type definitions for @dr.pogodin/csurf are in src/types/csrf.d.ts
+import csrf from '@dr.pogodin/csurf';
+import crypto from 'node:crypto';
 
 import { isSetupComplete, loadConfig } from './utils/config-manager.js';
 import { env } from './utils/env.js';
@@ -20,7 +24,15 @@ app.set('views', path.join(process.cwd(), 'src', 'views'));
 // Trust reverse proxy (for req.secure, X-Forwarded-Proto/IP)
 app.set('trust proxy', 1);
 
-app.use(helmet());
+// Keep Helmet simple - don't add CSP that breaks SSE
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Disable default CSP - we'll use custom one on HTML pages only
+    frameguard: { action: 'deny' },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  })
+);
+
 app.use(morgan('dev'));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
@@ -41,10 +53,10 @@ if (!setupComplete) {
   console.log('⚙️  Setup mode: Configuration required');
   console.log('📋 Please visit http://localhost:3000/setup to configure the application');
 
-  // Minimal session for setup (uses temporary secret)
+  // Minimal session for setup (uses cryptographically random secret)
   app.use(
     session({
-      secret: 'temporary-setup-secret-' + Date.now(),
+      secret: crypto.randomBytes(32).toString('hex'),
       resave: false,
       saveUninitialized: false,
       cookie: {
@@ -56,12 +68,32 @@ if (!setupComplete) {
     })
   );
 
-  // Setup routes
-  app.use('/', setupRouter);
+  // Rate limiter for setup
+  const setupLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: 'Too many setup attempts, please try again later.',
+  });
+
+  // CSRF protection for setup
+  const setupCsrf = csrf({ cookie: false });
+
+  // Setup routes with protection
+  app.use('/', setupLimiter, setupCsrf, setupRouter);
 
   // Redirect all other routes to setup
   app.get('*', (_req, res) => {
     res.redirect('/setup');
+  });
+
+  // Error handler for setup mode
+  app.use((err: any, req: any, res: any, next: any) => {
+    if (err.code === 'EBADCSRFTOKEN') {
+      console.warn(`[Security] CSRF validation failed in setup from IP: ${req.ip}`);
+      return res.status(403).send('Invalid CSRF token. Please refresh and try again.');
+    }
+    console.error('[Setup Error]', err);
+    res.status(500).send('Setup error occurred');
   });
 } else {
   // NORMAL MODE: Load configuration and run app
@@ -77,11 +109,15 @@ if (!setupComplete) {
   const meetRouter = await import('./routes/meet.js');
 
   // Session with real secret from config
+  const sessionDbPath = env('SESSION_DB_FILE', 'sessions.sqlite');
+  const sessionDbDir = path.dirname(sessionDbPath);
+  const sessionDbFile = path.basename(sessionDbPath);
+
   app.use(
     session({
       store: new SQLiteStore({
-        db: env('SESSION_DB_FILE', 'sessions.sqlite'),
-        dir: '.',
+        db: sessionDbFile,
+        dir: sessionDbDir,
       }) as any, // Type compatibility workaround for connect-sqlite3
       secret: env('SESSION_SECRET'),
       resave: false,
@@ -98,6 +134,32 @@ if (!setupComplete) {
 
   app.use(setLocalsFromSession);
 
+  // CSRF protection - applied to all routes EXCEPT /api/*
+  const csrfProtection = csrf({ cookie: false });
+  app.use((req, res, next) => {
+    // Skip CSRF for API routes (SSE)
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    // Apply CSRF to everything else
+    csrfProtection(req, res, (err: any) => {
+      if (err) return next(err);
+      res.locals.csrfToken = (req as any).csrfToken();
+      next();
+    });
+  });
+
+  // Rate limiters
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    skipSuccessfulRequests: true,
+    handler: (req, res) => {
+      console.warn(`[Security] Rate limit on auth from IP: ${req.ip}`);
+      res.status(429).send('Too many authentication attempts.');
+    },
+  });
+
   // Home/Dashboard
   app.get('/', (req, res) => {
     const user = req.session.user;
@@ -109,14 +171,24 @@ if (!setupComplete) {
     return res.render('dashboard', { user, personalUrl });
   });
 
-  // Auth routes
-  app.use('/', authRouter.default);
+  // Auth routes with rate limiting
+  app.use('/', authLimiter, authRouter.default);
 
-  // Meet routes (slug handling and status)
+  // Meet routes (NO rate limiting - SSE needs unrestricted access)
   app.use('/', meetRouter.default);
 
   // Initialize DB tables on startup
   db.init();
+
+  // Error handler for CSRF and other errors
+  app.use((err: any, req: any, res: any, next: any) => {
+    if (err.code === 'EBADCSRFTOKEN') {
+      console.warn(`[Security] CSRF validation failed from IP: ${req.ip} on ${req.path}`);
+      return res.status(403).send('Invalid security token');
+    }
+    console.error('[Error]', err);
+    res.status(500).send('Internal server error');
+  });
 }
 
 const port = Number(process.env.PORT || '3000');

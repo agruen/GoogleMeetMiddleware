@@ -86,7 +86,7 @@ The easiest way to get started is with the **web-based setup mode**:
 
 ```bash
 # With Docker (recommended)
-docker-compose up --build -d
+docker compose up --build -d
 
 # Or locally with Node.js
 npm install
@@ -95,7 +95,7 @@ npm run dev
 
 ### 2. Open Setup Interface
 
-Visit **http://localhost:3000** in your browser. Since no configuration exists yet, you'll automatically be redirected to the setup page.
+Visit **http://localhost:3000** (or **http://localhost:8014** if using the default docker-compose.yml port mapping) in your browser. Since no configuration exists yet, you'll automatically be redirected to the setup page.
 
 ### 3. Follow the Setup Wizard
 
@@ -108,8 +108,10 @@ The setup interface will guide you through:
 ### 4. Complete Setup
 
 After saving your configuration:
-- **Docker**: Restart with `docker-compose restart`
+- **Docker**: Restart with `docker compose restart app`
 - **Local**: Restart the app (Ctrl+C and `npm run dev`)
+
+The configuration is saved to `config/app-config.json` and automatically loaded on startup.
 
 That's it! Your application is ready to use. Visit http://localhost:3000 to log in.
 
@@ -128,30 +130,58 @@ That's it! Your application is ready to use. Visit http://localhost:3000 to log 
 
 ## ⚙️ Manual Configuration (Advanced)
 
-If you prefer to configure manually or already have your credentials ready:
+If you prefer to configure manually or already have your credentials ready, you can use environment variables or directly edit the config file.
 
 ### Google Cloud Setup
 
-If you have never configured Google Cloud before, follow the step-by-step guide in `docs/google-cloud-setup.md`. It covers creating the project, enabling the Calendar API, configuring the OAuth consent screen, and mapping credentials into your environment variables.
+If you have never configured Google Cloud before, follow the step-by-step guide in
+`docs/google-cloud-setup.md`. It covers creating the project, enabling the Calendar API, configuring
+the OAuth consent screen, and obtaining your credentials.
 
 Already familiar with the basics? Here's the fast checklist:
-- Create/select a Google Cloud project that belongs to your Workspace organization
-- Configure the OAuth consent screen (Internal is recommended) with scopes `openid`, `email`, `profile`, and `https://www.googleapis.com/auth/calendar.events`
-- Enable the Google Calendar API for the project
-- Create an OAuth **Web application** client with redirect URIs `<BASE_URL>/oauth2/callback` and `http://localhost:3000/oauth2/callback` for local testing
-- Copy the client ID, secret, and callback URL into `.env` (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL`)
-- Launch the app and sign in once to persist the encrypted refresh token in SQLite
+- Create/select a Google Cloud project that belongs to your Workspace organization.
+- Configure the OAuth consent screen (Internal is recommended) with scopes `openid`, `email`,
+  `profile`, and `https://www.googleapis.com/auth/calendar.events`.
+- Enable the Google Calendar API for the project.
+- Create an OAuth **Web application** client with redirect URIs
+  `<BASE_URL>/oauth2/callback` and `http://localhost:3000/oauth2/callback` for local testing.
+- Copy the client ID, secret, and callback URL for use in configuration.
+- Launch the app and sign in once to persist the encrypted refresh token in SQLite.
 
-### Configuration (.env)
+### Configuration Options
 
+The app supports two configuration methods (environment variables take precedence):
+
+#### Option 1: Environment Variables (.env)
 Copy `.env.example` to `.env` and fill in values:
 
-- `BASE_URL`: Public URL (e.g., `https://meet.example.com`)
-- `ALLOWED_DOMAIN`: Workspace domain (e.g., `yourcompany.com`)
-- `SESSION_SECRET`: Random 32+ char secret
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_CALLBACK_URL`
-- `MEET_WINDOW_MS`: Window in ms (default 300000 = 5 minutes)
-- `DB_FILE` and `SESSION_DB_FILE`: SQLite file paths (overridden in compose to `/data/*`)
+- `BASE_URL`: Public URL (e.g., `https://meet.example.com`).
+- `ALLOWED_DOMAIN`: Workspace domain (e.g., `yourcompany.com`).
+- `SESSION_SECRET`: Random 32+ char secret (32+ characters).
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_CALLBACK_URL`.
+- `MEET_WINDOW_MS`: Window in ms (default 300000).
+- `DB_FILE` and `SESSION_DB_FILE`: SQLite file paths (use `/data/app.sqlite` and `/data/sessions.sqlite` for Docker).
+
+#### Option 2: Config File (Docker deployments)
+When using Docker, configuration is stored in `config/app-config.json`. The setup wizard creates this file automatically, or you can create it manually:
+
+```json
+{
+  "BASE_URL": "https://meet.example.com",
+  "ALLOWED_DOMAIN": "yourcompany.com",
+  "GOOGLE_CLIENT_ID": "your-client-id.apps.googleusercontent.com",
+  "GOOGLE_CLIENT_SECRET": "GOCSPX-...",
+  "GOOGLE_CALLBACK_URL": "https://meet.example.com/oauth2/callback",
+  "SESSION_SECRET": "your-random-secret-32plus-chars",
+  "PORT": "3000",
+  "MEET_WINDOW_MS": "300000",
+  "DB_FILE": "/data/app.sqlite",
+  "SESSION_DB_FILE": "/data/sessions.sqlite",
+  "NODE_ENV": "production"
+}
+```
+
+**Important for Docker**: Ensure `DB_FILE` and `SESSION_DB_FILE` use absolute paths pointing to `/data/` to match the volume mount in `docker-compose.yml`.
 
 ---
 
@@ -170,12 +200,14 @@ npm run dev
 Build and run with Docker Compose:
 
 ```bash
-docker-compose up --build -d
+docker compose up --build -d
 ```
 
-- Uses `node:20-bookworm-slim` with native build tools in builder stage
-- Persists SQLite DBs under `./data` on the host
-- Exposes port `3000` by default
+- Uses `node:20-bookworm-slim` with native build tools in builder stage.
+- Persists SQLite DBs under `./data` on the host.
+- Persists configuration in `./config/app-config.json` on the host.
+- Exposes port `3000` internally (mapped to `8014` by default in docker-compose.yml).
+- Configuration is loaded from `config/app-config.json` (created by setup wizard) or environment variables.
 
 If building directly with Docker for a specific ARM platform:
 

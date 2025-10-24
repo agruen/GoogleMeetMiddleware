@@ -12,15 +12,16 @@
     "format": "prettier --check ."
   },
   "dependencies": {
+    "@dr.pogodin/csurf": "1.14.0",
     "better-sqlite3": "11.7.0",
     "body-parser": "1.20.2",
     "connect-sqlite3": "0.9.15",
     "cookie-parser": "1.4.6",
-    "csurf": "1.11.0",
     "dayjs": "1.11.11",
     "dotenv": "16.4.5",
     "ejs": "3.1.10",
     "express": "4.19.2",
+    "express-rate-limit": "7.4.1",
     "express-session": "1.17.3",
     "googleapis": "142.0.0",
     "helmet": "7.1.0",

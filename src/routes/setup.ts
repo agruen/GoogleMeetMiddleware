@@ -13,9 +13,9 @@ const router = Router();
  * GET /setup
  * Show the setup form
  */
-router.get('/setup', (_req: Request, res: Response) => {
+router.get('/setup', (req: Request, res: Response) => {
   const config = getCurrentConfig();
-  res.render('setup', { config, errors: null });
+  res.render('setup', { config, errors: null, csrfToken: (req as any).csrfToken() });
 });
 
 /**
@@ -66,12 +66,15 @@ router.post('/setup/save', (req: Request, res: Response) => {
     return res.render('setup', {
       config,
       errors: validation.errors,
+      csrfToken: (req as any).csrfToken(),
     });
   }
 
   try {
     // Save configuration
     saveConfig(config);
+
+    console.log(`[Setup] Configuration saved successfully for domain: ${config.ALLOWED_DOMAIN}`);
 
     // Show success page
     const isDocker = process.env.DOCKER === 'true' || process.env.NODE_ENV === 'production';
@@ -80,10 +83,11 @@ router.post('/setup/save', (req: Request, res: Response) => {
       isDocker,
     });
   } catch (err) {
-    console.error('Failed to save configuration:', err);
+    console.error('[Setup] Failed to save configuration:', err);
     res.render('setup', {
       config,
       errors: ['Failed to save configuration. Please check file permissions.'],
+      csrfToken: (req as any).csrfToken(),
     });
   }
 });

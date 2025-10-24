@@ -12,6 +12,9 @@
       <p>Your personal meet link:</p>
       <p><a class="link" href="<%= personalUrl %>"><%= personalUrl %></a></p>
       <form action="/logout" method="post">
+        <% if (typeof csrfToken !== 'undefined' && csrfToken) { %>
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <% } %>
         <button class="button" type="submit">Log out</button>
       </form>
     </main>

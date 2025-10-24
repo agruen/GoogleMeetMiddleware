@@ -30,26 +30,34 @@ export function subscribe(req: Request, res: Response, channel: string) {
 
   if (!channels.has(channel)) channels.set(channel, new Set());
   channels.get(channel)!.add(sub);
+  console.log(`[SSE] New subscriber to channel: ${channel}, total: ${channels.get(channel)!.size}`);
 
   req.on('close', () => {
     clearInterval(sub.heartbeat);
     channels.get(channel)?.delete(sub);
+    console.log(`[SSE] Subscriber disconnected from: ${channel}, remaining: ${channels.get(channel)?.size || 0}`);
   });
 }
 
 export function broadcast(channel: string, event: string, data: unknown) {
   const subs = channels.get(channel);
-  if (!subs) return;
+  console.log(`[SSE] Broadcasting ${event} to channel: ${channel}, subscribers: ${subs?.size || 0}`);
+  if (!subs) {
+    console.log(`[SSE] No subscribers for channel: ${channel}`);
+    return;
+  }
   for (const sub of subs) {
     try {
+      console.log(`[SSE] Sending ${event} event to subscriber`);
       writeSse(sub.res, event, data);
       // Close after sending an active event
       if (event === 'active') {
         clearInterval(sub.heartbeat);
         sub.res.end();
       }
-    } catch {
+    } catch (err) {
       // best-effort cleanup
+      console.log(`[SSE] Error sending to subscriber:`, err);
       clearInterval(sub.heartbeat);
       sub.res.end();
       subs.delete(sub);

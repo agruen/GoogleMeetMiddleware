@@ -59,12 +59,21 @@ export function loadConfig(): Partial<AppConfig> {
   }
 
   // Merge with environment variables (env takes precedence)
-  return {
+  const mergedConfig = {
     ...fileConfig,
     ...Object.fromEntries(
       Object.entries(process.env).filter(([_, v]) => v !== undefined && v !== '')
     ),
   };
+
+  // Apply file config values to process.env (only if not already set)
+  Object.entries(fileConfig).forEach(([key, value]) => {
+    if (value !== undefined && (process.env[key] === undefined || process.env[key] === '')) {
+      process.env[key] = String(value);
+    }
+  });
+
+  return mergedConfig;
 }
 
 /**
@@ -77,11 +86,13 @@ export function saveConfig(config: AppConfig): void {
     fs.mkdirSync(configDir, { recursive: true });
   }
 
-  // Save config file
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
+  // Save config file with restricted permissions (owner read/write, group/others read)
+  // Note: In Docker environments with volume mounts, 644 is needed for container access
+  // The directory itself should have restricted access for security
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), { mode: 0o644 });
 
-  // Create setup complete flag
-  fs.writeFileSync(SETUP_COMPLETE_FLAG, new Date().toISOString(), 'utf-8');
+  // Create setup complete flag with restricted permissions
+  fs.writeFileSync(SETUP_COMPLETE_FLAG, new Date().toISOString(), { mode: 0o644 });
 
   // Apply to current process.env
   Object.entries(config).forEach(([key, value]) => {

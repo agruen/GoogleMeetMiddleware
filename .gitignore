@@ -2,6 +2,16 @@ node_modules/
 dist/
 .env
 *.sqlite
+*.sqlite-shm
+*.sqlite-wal
 *.sqlite-journal
 coverage/
 /.DS_Store
+SECURITY.md
+
+# Sensitive configuration and data
+config/
+data/
+
+# Claude Code settings (may contain user-specific preferences)
+.claude/settings.local.json

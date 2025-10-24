@@ -170,6 +170,7 @@
     </div>
 
     <form method="POST" action="/setup/save">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <!-- Basic Configuration -->
       <div class="form-section">
         <h2>📍 Basic Configuration</h2>

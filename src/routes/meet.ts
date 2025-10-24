@@ -4,11 +4,21 @@ import { db } from '../utils/db.js';
 import { config } from '../utils/env.js';
 import { createMeetWithRefreshToken } from '../adapters/google-meet/index.js';
 import { subscribe, broadcast } from '../utils/sse.js';
+import { isValidSlug } from '../utils/slug.js';
 
 const router = Router();
 
 router.get('/api/wait/:slug/stream', (req, res) => {
   const { slug } = req.params;
+
+  // Validate slug format
+  if (!isValidSlug(slug)) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.write('event: error\n');
+    res.write('data: {"message":"invalid-slug"}\n\n');
+    return res.end();
+  }
+
   const user = db.findUserBySlug(slug);
   if (!user) {
     res.setHeader('Content-Type', 'text/event-stream');
@@ -30,6 +40,12 @@ router.get('/api/wait/:slug/stream', (req, res) => {
 
 router.get('/:slug', async (req, res) => {
   const { slug } = req.params;
+
+  // Validate slug format
+  if (!isValidSlug(slug)) {
+    return res.status(400).send('Invalid slug format');
+  }
+
   const user = db.findUserBySlug(slug);
   if (!user) return res.status(404).send('User not found');
 
@@ -40,10 +56,13 @@ router.get('/:slug', async (req, res) => {
     // Host: create if not active
     if (!active) {
       try {
+        console.log(`[Meet] Host ${user.slug} creating new meeting`);
         const meetUrl = await createMeetWithRefreshToken(user.refreshTokenEnc);
         const expiresAt = dayjs().add(config.meetWindowMs(), 'millisecond').toISOString();
         db.createMeet(user.id, meetUrl, expiresAt);
+        console.log(`[Meet] Meeting created: ${meetUrl}`);
         // notify waiters via SSE
+        console.log(`[Meet] Broadcasting to channel: wait:${slug}`);
         broadcast(`wait:${slug}`, 'active', { meetUrl });
         return res.redirect(meetUrl);
       } catch (err) {
@@ -51,6 +70,7 @@ router.get('/:slug', async (req, res) => {
         return res.status(502).send('Failed to create Google Meet');
       }
     }
+    console.log(`[Meet] Host ${user.slug} joining existing meeting: ${active.meetUrl}`);
     return res.redirect(active.meetUrl);
   }
 
