@@ -40,7 +40,7 @@ Think of it as a smart "receptionist" for your Google Meets - visitors wait in t
 
 - **Backend**: Node.js + Express (TypeScript)
 - **Auth**: Google OAuth 2.0 (Workspace domain‑restricted)
-- **Meet creation**: Google Calendar API (conferenceData createRequest)
+- **Meet creation**: Google Meet API (`meetings.create`)
 - **Persistence**: SQLite (file‑based)
 - **Sessions**: express‑session + connect-sqlite3
 - **Real-time**: Server-Sent Events (SSE) for instant notifications
@@ -121,7 +121,7 @@ That's it! Your application is ready to use. Visit http://localhost:3000 to log 
 
 - Google Cloud project with OAuth consent screen configured for your Workspace
 - OAuth 2.0 Client ID (Web app) + secret
-- Calendar API enabled for the project
+- Google Meet API enabled for the project
 - Redirect URI pointing to your app's callback, e.g. `https://meet.example.com/oauth2/callback`
 
 **💡 Don't have Google Cloud set up yet?** No problem! The setup interface includes a detailed guide with step-by-step instructions. Just start the app and click "Setup Instructions" when you get to the setup page.
@@ -135,14 +135,14 @@ If you prefer to configure manually or already have your credentials ready, you 
 ### Google Cloud Setup
 
 If you have never configured Google Cloud before, follow the step-by-step guide in
-`docs/google-cloud-setup.md`. It covers creating the project, enabling the Calendar API, configuring
+`docs/google-cloud-setup.md`. It covers creating the project, enabling the Google Meet API, configuring
 the OAuth consent screen, and obtaining your credentials.
 
 Already familiar with the basics? Here's the fast checklist:
 - Create/select a Google Cloud project that belongs to your Workspace organization.
 - Configure the OAuth consent screen (Internal is recommended) with scopes `openid`, `email`,
-  `profile`, and `https://www.googleapis.com/auth/calendar.events`.
-- Enable the Google Calendar API for the project.
+  `profile`, and `https://www.googleapis.com/auth/meetings.space.created`.
+- Enable the Google Meet API for the project.
 - Create an OAuth **Web application** client with redirect URIs
   `<BASE_URL>/oauth2/callback` and `http://localhost:3000/oauth2/callback` for local testing.
 - Copy the client ID, secret, and callback URL for use in configuration.

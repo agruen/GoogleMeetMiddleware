@@ -2,7 +2,7 @@
 
 Use this guide to create the Google Cloud resources that power the Google Meet middleware. It walks you through every screen you will touch, assuming no prior Google Cloud experience.
 
-> **Goal:** By the end you will have a Google Cloud project with OAuth credentials, the Calendar API enabled, and environment variables ready to paste into `.env`.
+> **Goal:** By the end you will have a Google Cloud project with OAuth credentials, the Google Meet API enabled, and environment variables ready to paste into `.env`.
 
 ## 1. Prerequisites
 - A Google Workspace account on the domain you plan to allow (for example `you@yourcompany.com`).
@@ -18,12 +18,12 @@ Use this guide to create the Google Cloud resources that power the Google Meet m
 6. Click **Create**. Google will provision the project (usually within a few seconds).
 7. When the notification "Project created" appears, click **Select project** to switch into it.
 
-> If this is your first project, you may be prompted to enable billing. Enabling billing does not incur charges for the Google Calendar API, but Google requires a billing account to use many services. Follow the on-screen steps if prompted.
+> If this is your first project, you may be prompted to enable billing. Enabling billing does not incur charges for the Google Meet API, but Google requires a billing account to use many services. Follow the on-screen steps if prompted.
 
 ## 3. Enable required APIs
 1. Inside the new project, open the left-hand navigation menu (☰) and choose **APIs & Services → Library**.
-2. Search for **Google Calendar API**.
-3. Click the **Google Calendar API** result, then click **Enable**. Wait for the confirmation banner.
+2. Search for **Google Meet API**.
+3. Click the **Google Meet API** result, then click **Enable**. Wait for the confirmation banner.
 4. Optional: search for **People API** and enable it if you plan to show additional profile data. The core app does not require it.
 
 ## 4. Prepare the OAuth consent screen
@@ -40,7 +40,7 @@ The consent screen is what your users see the first time they sign in.
    - `.../auth/userinfo.email`
    - `.../auth/userinfo.profile`
    - `openid`
-   - `https://www.googleapis.com/auth/calendar.events`
+   - `https://www.googleapis.com/auth/meetings.space.created`
    Scroll down and click **Update**.
 6. If you selected the **External** user type, add any Workspace test users who need to log in before verification is complete.
 7. Click **Save and Continue** until you reach the summary page, then click **Back to Dashboard**.
@@ -151,4 +151,4 @@ When deploying for the first time, sign in once as a host user to seed the encry
 - **Configuration not persisting in Docker:** Ensure the `./config` directory exists and has correct permissions. The setup wizard creates files as the container user (node), so the host user must be able to read them.
 - **Database permission errors in Docker:** Ensure `DB_FILE` and `SESSION_DB_FILE` in `config/app-config.json` use absolute paths (`/data/app.sqlite`, not `app.sqlite`) to match the volume mount.
 
-Once the above steps are complete, your Google Cloud project is ready and the application can authenticate users and create Google Meet links through the Calendar API.
+Once the above steps are complete, your Google Cloud project is ready and the application can authenticate users and create Google Meet links through the Meet API.

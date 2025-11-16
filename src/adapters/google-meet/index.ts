@@ -4,7 +4,7 @@ import { decrypt } from '../../utils/crypto.js';
 import { nanoid } from 'nanoid';
 
 const SCOPES = [
-  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/meetings.space.created',
   'openid',
   'email',
   'profile'
@@ -46,32 +46,27 @@ export async function createMeetWithRefreshToken(refreshTokenEnc: string): Promi
   const refreshToken = decrypt(refreshTokenEnc);
   const client = oauthClient();
   client.setCredentials({ refresh_token: refreshToken });
-  const calendar = google.calendar({ version: 'v3', auth: client });
   const requestId = nanoid();
 
-  const now = new Date();
-  const end = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour dummy event duration
+  try {
+    const response = await client.request<{ meetingUri?: string; meetingCode?: string }>({
+      url: 'https://meet.googleapis.com/v1/meetings',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data: { requestId },
+    });
 
-  const res = await calendar.events.insert({
-    calendarId: 'primary',
-    conferenceDataVersion: 1,
-    requestBody: {
-      summary: 'Ad-hoc Meeting',
-      description: 'Created by Google Meet Middleware',
-      start: { dateTime: now.toISOString() },
-      end: { dateTime: end.toISOString() },
-      conferenceData: {
-        createRequest: {
-          requestId,
-          conferenceSolutionKey: { type: 'hangoutsMeet' },
-        },
-      },
-    },
-  });
-
-  const event = res.data;
-  const entryPoints = event.conferenceData?.entryPoints;
-  const meetUrl = entryPoints?.find((e) => e.entryPointType === 'video')?.uri || event.hangoutLink;
-  if (!meetUrl) throw new Error('Failed to get Meet URL from Google');
-  return meetUrl;
+    const { meetingUri, meetingCode } = response.data;
+    if (meetingUri) return meetingUri;
+    if (meetingCode) return `https://meet.google.com/${meetingCode}`;
+    throw new Error('Missing meetingUri and meetingCode in Google Meet API response');
+  } catch (error) {
+    const maybeResponse = (error as { response?: { status?: number; data?: unknown } }).response;
+    if (maybeResponse?.status === 403) {
+      throw new Error(
+        'Google Meet API returned 403. Enable the Meet API and request the meetings.space.created scope.'
+      );
+    }
+    throw error;
+  }
 }
