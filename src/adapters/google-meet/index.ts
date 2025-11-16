@@ -53,7 +53,7 @@ export async function createMeetWithRefreshToken(refreshTokenEnc: string): Promi
       url: 'https://meet.googleapis.com/v2/spaces',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      data: { requestId },
+      data: {},
     });
 
     const { meetingUri, meetingCode } = response.data;
