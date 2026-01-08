@@ -34,9 +34,12 @@ router.post('/setup/save', (req: Request, res: Response) => {
   const formData = req.body;
 
   // Build config object
+  // Checkboxes send 'on' when checked, nothing when unchecked
   const config: AppConfig = {
     BASE_URL: formData.BASE_URL?.trim() || '',
     ALLOWED_DOMAIN: formData.ALLOWED_DOMAIN?.trim() || '',
+    ALLOW_ANY_DOMAIN: formData.ALLOW_ANY_DOMAIN === 'on' ? 'true' : 'false',
+    SINGLE_USER_MODE: formData.SINGLE_USER_MODE === 'on' ? 'true' : 'false',
     GOOGLE_CLIENT_ID: formData.GOOGLE_CLIENT_ID?.trim() || '',
     GOOGLE_CLIENT_SECRET: formData.GOOGLE_CLIENT_SECRET?.trim() || '',
     GOOGLE_CALLBACK_URL: formData.GOOGLE_CALLBACK_URL?.trim() || '',
@@ -74,7 +77,10 @@ router.post('/setup/save', (req: Request, res: Response) => {
     // Save configuration
     saveConfig(config);
 
-    console.log(`[Setup] Configuration saved successfully for domain: ${config.ALLOWED_DOMAIN}`);
+    const mode = config.ALLOW_ANY_DOMAIN === 'true'
+      ? (config.SINGLE_USER_MODE === 'true' ? 'single-user' : 'any-domain')
+      : `domain: ${config.ALLOWED_DOMAIN}`;
+    console.log(`[Setup] Configuration saved successfully (${mode})`);
 
     // Show success page
     const isDocker = process.env.DOCKER === 'true' || process.env.NODE_ENV === 'production';

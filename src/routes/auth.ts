@@ -34,10 +34,28 @@ router.get('/oauth2/callback', async (req, res) => {
     }
     const profile = await getUserInfo(access);
     const email = profile.email as string;
+    if (!email) {
+      console.warn('[Auth] Login attempt with no email in profile');
+      return res.status(403).send('No email in Google profile');
+    }
+
     const domain = config.allowedDomain();
-    if (!email || !email.endsWith(`@${domain}`)) {
+    const allowAny = config.allowAnyDomain();
+
+    // Domain check (skip if allowAnyDomain is true or domain is empty)
+    if (!allowAny && domain && !email.endsWith(`@${domain}`)) {
       console.warn(`[Auth] Login attempt from unauthorized domain: ${email}`);
       return res.status(403).send('Email domain not allowed');
+    }
+
+    // Single-user mode: only the first user can register
+    if (config.singleUserMode()) {
+      const existingUsers = db.countUsers();
+      const existingUser = db.findUserByEmail(email);
+      if (existingUsers > 0 && !existingUser) {
+        console.warn(`[Auth] Single-user mode: rejected new user ${email}`);
+        return res.status(403).send('Single-user mode: registration closed');
+      }
     }
     const googleId = profile.id as string;
     const firstName = (profile.given_name as string) || email.split('@')[0];

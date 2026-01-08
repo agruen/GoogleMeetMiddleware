@@ -5,6 +5,8 @@ import crypto from 'node:crypto';
 export interface AppConfig {
   BASE_URL: string;
   ALLOWED_DOMAIN: string;
+  ALLOW_ANY_DOMAIN: string;
+  SINGLE_USER_MODE: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   GOOGLE_CALLBACK_URL: string;
@@ -117,9 +119,10 @@ export function validateConfig(config: Partial<AppConfig>): {
   errors: string[];
 } {
   const errors: string[] = [];
+
+  // Base required fields (always required)
   const required: (keyof AppConfig)[] = [
     'BASE_URL',
-    'ALLOWED_DOMAIN',
     'GOOGLE_CLIENT_ID',
     'GOOGLE_CLIENT_SECRET',
     'SESSION_SECRET',
@@ -129,6 +132,12 @@ export function validateConfig(config: Partial<AppConfig>): {
     if (!config[key] || config[key]?.trim() === '') {
       errors.push(`${key} is required`);
     }
+  }
+
+  // ALLOWED_DOMAIN is required unless ALLOW_ANY_DOMAIN is true
+  const allowAny = config.ALLOW_ANY_DOMAIN === 'true';
+  if (!allowAny && (!config.ALLOWED_DOMAIN || config.ALLOWED_DOMAIN.trim() === '')) {
+    errors.push('ALLOWED_DOMAIN is required (or set "Allow any Google account" to true)');
   }
 
   // Validate BASE_URL format
@@ -167,6 +176,8 @@ export function getCurrentConfig(): Partial<AppConfig> {
     PORT: config.PORT || '3000',
     BASE_URL: config.BASE_URL || '',
     ALLOWED_DOMAIN: config.ALLOWED_DOMAIN || '',
+    ALLOW_ANY_DOMAIN: config.ALLOW_ANY_DOMAIN || 'false',
+    SINGLE_USER_MODE: config.SINGLE_USER_MODE || 'false',
     GOOGLE_CLIENT_ID: config.GOOGLE_CLIENT_ID || '',
     GOOGLE_CLIENT_SECRET: config.GOOGLE_CLIENT_SECRET || '',
     GOOGLE_CALLBACK_URL: config.GOOGLE_CALLBACK_URL || '',

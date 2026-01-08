@@ -7,7 +7,11 @@
     <link rel="stylesheet" href="/public/styles.css" />
     <script>
       function startSSE() {
+        <% if (typeof singleUserMode !== 'undefined' && singleUserMode && slug === '') { %>
+        const es = new EventSource('/api/wait/stream');
+        <% } else { %>
         const es = new EventSource('/api/wait/<%= slug %>/stream');
+        <% } %>
         es.addEventListener('active', (ev) => {
           try {
             const data = JSON.parse(ev.data);

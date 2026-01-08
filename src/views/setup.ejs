@@ -190,16 +190,43 @@
         </div>
 
         <div class="form-group">
-          <label for="ALLOWED_DOMAIN">Allowed Domain *</label>
+          <label for="ALLOWED_DOMAIN">Allowed Domain</label>
           <input
             type="text"
             id="ALLOWED_DOMAIN"
             name="ALLOWED_DOMAIN"
             value="<%= config.ALLOWED_DOMAIN %>"
             placeholder="example.com"
-            required
           >
-          <small>Only users with email addresses from this domain can log in (e.g., yourcompany.com)</small>
+          <small>Only users with email addresses from this domain can log in. Leave empty if using "Allow any Google account".</small>
+        </div>
+
+        <div class="form-group">
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <input
+              type="checkbox"
+              id="ALLOW_ANY_DOMAIN"
+              name="ALLOW_ANY_DOMAIN"
+              <%= config.ALLOW_ANY_DOMAIN === 'true' ? 'checked' : '' %>
+              style="width: auto;"
+            >
+            Allow any Google account
+          </label>
+          <small>When enabled, any Google account can log in (ignores Allowed Domain). Useful for personal use.</small>
+        </div>
+
+        <div class="form-group">
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <input
+              type="checkbox"
+              id="SINGLE_USER_MODE"
+              name="SINGLE_USER_MODE"
+              <%= config.SINGLE_USER_MODE === 'true' ? 'checked' : '' %>
+              style="width: auto;"
+            >
+            Single-user mode
+          </label>
+          <small>When enabled, only the first user to log in can use the app. Ideal for personal deployments.</small>
         </div>
 
         <div class="form-group">

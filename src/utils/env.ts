@@ -8,7 +8,9 @@ export function env(name: string, fallback?: string): string {
 }
 
 export const config = {
-  allowedDomain: () => env('ALLOWED_DOMAIN', 'workingpaper.co'),
+  allowedDomain: () => env('ALLOWED_DOMAIN', ''),
+  allowAnyDomain: () => env('ALLOW_ANY_DOMAIN', 'false') === 'true',
+  singleUserMode: () => env('SINGLE_USER_MODE', 'false') === 'true',
   baseUrl: () => env('BASE_URL'),
   oauth: {
     clientId: () => env('GOOGLE_CLIENT_ID'),
