@@ -89,6 +89,9 @@ export const db = {
     const row = conn.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
     return row.count;
   },
+  getAllUsers(): User[] {
+    return conn.prepare('SELECT * FROM users ORDER BY id ASC').all() as User[];
+  },
   insertUser(u: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): User {
     const now = dayjs().toISOString();
     const info = conn
