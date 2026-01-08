@@ -85,6 +85,10 @@ export const db = {
   findUserByEmail(email: string): User | undefined {
     return conn.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
   },
+  countUsers(): number {
+    const row = conn.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
+    return row.count;
+  },
   insertUser(u: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): User {
     const now = dayjs().toISOString();
     const info = conn

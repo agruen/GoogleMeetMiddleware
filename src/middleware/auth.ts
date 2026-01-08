@@ -21,8 +21,16 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 
 export function requireDomainUser(req: Request, res: Response, next: NextFunction) {
   const user = req.session.user;
+  if (!user) return res.status(403).send('Forbidden');
+
   const domain = config.allowedDomain();
-  if (user && user.email.endsWith(`@${domain}`)) return next();
+  const allowAny = config.allowAnyDomain();
+
+  // If no domain restriction, just check they're authenticated
+  if (allowAny || !domain) return next();
+
+  // Otherwise, verify domain
+  if (user.email.endsWith(`@${domain}`)) return next();
   return res.status(403).send('Forbidden');
 }
 
