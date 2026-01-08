@@ -35,9 +35,13 @@ COPY src/public ./src/public
 RUN mkdir -p /data /app/config && \
     chown -R appuser:appuser /app /data
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 # Switch to non-root user
 USER appuser
 
 EXPOSE 3000
-CMD ["node", "dist/index.js"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
