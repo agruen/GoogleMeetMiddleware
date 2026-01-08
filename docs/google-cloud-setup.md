@@ -5,9 +5,17 @@ Use this guide to create the Google Cloud resources that power the Google Meet m
 > **Goal:** By the end you will have a Google Cloud project with OAuth credentials, the Google Meet API enabled, and environment variables ready to paste into `.env`.
 
 ## 1. Prerequisites
+
+### For Google Workspace Users (Enterprise Mode)
 - A Google Workspace account on the domain you plan to allow (for example `you@yourcompany.com`).
 - Permission to create projects and OAuth credentials in Google Cloud. Workspace super admins already have this; if you are not an admin, ask one to grant you the **Project Creator** and **OAuth Config Editor** roles or create the resources for you.
 - (Optional but recommended) Access to the public DNS for your production domain so you can verify it during the OAuth consent setup.
+
+### For Personal Gmail Users (Personal/Single-User Mode)
+- Any Google account (personal Gmail works fine!)
+- No admin access required - you'll create your own Google Cloud project
+- OAuth consent screen will be set to "External" with "Testing" status (limited to 100 test users, which is plenty for personal use)
+- You'll need to add your own email as a test user
 
 ## 2. Create a Google Cloud project
 1. Visit <https://console.cloud.google.com/> and sign in with your Workspace account.
@@ -30,7 +38,9 @@ Use this guide to create the Google Cloud resources that power the Google Meet m
 The consent screen is what your users see the first time they sign in.
 
 1. Still in **APIs & Services**, click **OAuth consent screen** in the left sidebar.
-2. For **User Type** select **Internal** if everyone signing in belongs to your Workspace domain. Choose **External** only if you must allow non-Workspace accounts. (External apps must be verified by Google before they can be used publicly.)
+2. For **User Type**, choose based on your deployment mode:
+   - **Internal**: Best for enterprise deployments where all users are in your Google Workspace domain. No verification required.
+   - **External**: Required for personal Gmail accounts or if you want to allow users from multiple domains. Starts in "Testing" mode.
 3. Click **Create**.
 4. Fill out the **App information** section:
    - **App name**: e.g. `Meet Link Generator`.
@@ -42,7 +52,11 @@ The consent screen is what your users see the first time they sign in.
    - `openid`
    - `https://www.googleapis.com/auth/meetings.space.created`
    Scroll down and click **Update**.
-6. If you selected the **External** user type, add any Workspace test users who need to log in before verification is complete.
+6. **For External apps only**: You must add test users who can log in while the app is in "Testing" status:
+   - Click **Add users** and enter the email addresses of everyone who needs access
+   - This includes your own email if using personal/single-user mode
+   - Testing mode allows up to 100 test users (plenty for personal or small team use)
+   - Note: You can skip Google's verification process if you stay under 100 users
 7. Click **Save and Continue** until you reach the summary page, then click **Back to Dashboard**.
 
 ### Verify your custom domain (optional but recommended)
@@ -77,12 +91,15 @@ You have two options for providing these credentials to the application:
 3. You'll be automatically redirected to the setup wizard
 4. Fill in the form with the values from the OAuth credential you created:
    - `BASE_URL`: The public base URL (e.g., `https://meet.example.com`)
-   - `ALLOWED_DOMAIN`: Your Workspace domain (e.g., `yourcompany.com`)
+   - `ALLOWED_DOMAIN`: Your Workspace domain (e.g., `yourcompany.com`) - **leave empty for personal accounts**
    - `GOOGLE_CLIENT_ID`: The client ID from Google Cloud
    - `GOOGLE_CLIENT_SECRET`: The client secret from Google Cloud
    - `GOOGLE_CALLBACK_URL`: The redirect URI (e.g., `https://meet.example.com/oauth2/callback`)
    - `SESSION_SECRET`: Click "Generate" to create a secure random secret
-5. Click "Save Configuration" and restart the application
+5. **For personal/single-user deployments**, also check:
+   - `Allow any Google account`: Allows any Google account to authenticate
+   - `Single-user mode`: Only the first user to log in can use the app (ideal for personal use)
+6. Click "Save Configuration" and restart the application
 
 The setup wizard will create a `config/app-config.json` file with your settings.
 
@@ -96,7 +113,9 @@ If you prefer manual configuration, you can either:
 | Variable | Value | Example |
 | --- | --- | --- |
 | `BASE_URL` | The public base URL for the deployed app | `http://localhost:3000` (dev) or `https://meet.example.com` (prod) |
-| `ALLOWED_DOMAIN` | Workspace domain allowed to sign in | `yourcompany.com` |
+| `ALLOWED_DOMAIN` | Workspace domain allowed to sign in (optional) | `yourcompany.com` or empty for personal use |
+| `ALLOW_ANY_DOMAIN` | Allow any Google account to authenticate | `true` for personal/team mode, `false` for enterprise |
+| `SINGLE_USER_MODE` | Only allow the first user to log in | `true` for personal mode, `false` for multi-user |
 | `SESSION_SECRET` | 32+ character random string | generate with a password manager |
 | `GOOGLE_CLIENT_ID` | The client ID from Google Cloud | `1234.apps.googleusercontent.com` |
 | `GOOGLE_CLIENT_SECRET` | The client secret from Google Cloud | `GOCSPX-...` |
@@ -117,9 +136,13 @@ If you prefer manual configuration, you can either:
 
 If you encounter errors during login:
 - `redirect_uri_mismatch`: Double-check that the URI in Google Cloud matches `GOOGLE_CALLBACK_URL` exactly (including protocol and no trailing slash).
-- `Error 403: access_denied`: Make sure the signing-in user belongs to `ALLOWED_DOMAIN` and was added as a test user if the app type is External.
+- `Error 403: access_denied`: This usually means:
+  - For External apps: The user hasn't been added as a test user (see step 4.6)
+  - For Internal apps: The user is not in the allowed Workspace domain
+  - Domain mismatch: Check that `ALLOWED_DOMAIN` matches the user's email domain (or use `ALLOW_ANY_DOMAIN=true`)
 - `unauthorized_client`: Verify you created a **Web application** client, not another type.
 - `Missing required env var`: Restart the application after saving configuration (`docker compose restart app` for Docker).
+- `Access blocked: This app's request is invalid`: Usually means scopes are misconfigured. Make sure `meetings.space.created` scope is added in the OAuth consent screen.
 
 ## 8. Deploying in production
 1. Provision hosting for the Node.js app (for example Docker behind nginx as described in the README).
@@ -150,5 +173,9 @@ When deploying for the first time, sign in once as a host user to seed the encry
 - **Lost client secret:** Edit the OAuth client in Google Cloud and click **Reset secret**. Remember to update your `.env` file or `config/app-config.json` and restart the app.
 - **Configuration not persisting in Docker:** Ensure the `./config` directory exists and has correct permissions. The setup wizard creates files as the container user (node), so the host user must be able to read them.
 - **Database permission errors in Docker:** Ensure `DB_FILE` and `SESSION_DB_FILE` in `config/app-config.json` use absolute paths (`/data/app.sqlite`, not `app.sqlite`) to match the volume mount.
+- **"Testing" mode limitations:** External apps in testing mode can only have 100 test users. This is fine for personal use, but if you need more users, you'll need to go through Google's verification process.
+- **Personal Gmail not working:** Make sure you've set `ALLOW_ANY_DOMAIN=true` in your configuration and added your email as a test user in the OAuth consent screen.
+- **Single-user mode not working:** Ensure `SINGLE_USER_MODE=true` is set. The first user to log in becomes the sole authorized user. To change users, delete the database file and restart.
+- **Permission denied on startup:** Docker checks that `/app/config` and `/data` are writable. Run `chmod 777 config data` or `chown -R 1000:1000 config data` on your host machine.
 
 Once the above steps are complete, your Google Cloud project is ready and the application can authenticate users and create Google Meet links through the Meet API.
