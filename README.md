@@ -36,10 +36,40 @@ Think of it as a smart "receptionist" for your Google Meets - visitors wait in t
 
 ---
 
+## 🏢 Deployment Options
+
+The app supports three deployment modes depending on your needs:
+
+### Enterprise Mode (Default)
+**Best for**: Companies with Google Workspace
+
+- Set `ALLOWED_DOMAIN=yourcompany.com` to restrict login to your organization
+- Each employee gets a personal meeting link (e.g., `/john`, `/jane`)
+- Requires Google Workspace admin to create OAuth credentials (or delegate to users with the right roles)
+
+### Personal/Team Mode
+**Best for**: Personal Gmail accounts or small teams without Workspace admin access
+
+- Set `ALLOW_ANY_DOMAIN=true` to allow any Google account
+- Multiple users can each have their own meeting link
+- Each user creates their own Google Cloud project for OAuth credentials
+- OAuth consent screen set to "External" mode (limited to 100 test users until verified)
+
+### Single-User Mode
+**Best for**: Individual users who want the simplest possible setup
+
+- Set `SINGLE_USER_MODE=true` along with `ALLOW_ANY_DOMAIN=true`
+- Only the first person to log in can use the app
+- The root URL (`/`) becomes your meeting link - no personal slug needed!
+- Visitors go to your base URL and see the waiting room
+- When you visit, a meeting is created and visitors are redirected automatically
+
+---
+
 ## 🔧 Technical Overview
 
 - **Backend**: Node.js + Express (TypeScript)
-- **Auth**: Google OAuth 2.0 (Workspace domain‑restricted)
+- **Auth**: Google OAuth 2.0 (flexible: domain-restricted, any account, or single-user)
 - **Meet creation**: Google Meet API (`meetings.create`)
 - **Persistence**: SQLite (file‑based)
 - **Sessions**: express‑session + connect-sqlite3
@@ -50,16 +80,21 @@ Think of it as a smart "receptionist" for your Google Meets - visitors wait in t
 
 ## ✨ Features
 
-- ✅ Google OAuth restricted to `ALLOWED_DOMAIN` (e.g., `yourcompany.com`)
+- ✅ Google OAuth with flexible domain control:
+  - Restrict to a specific domain (e.g., `yourcompany.com`)
+  - Allow any Google account (`ALLOW_ANY_DOMAIN=true`)
+  - Single-user mode for personal deployments (`SINGLE_USER_MODE=true`)
 - ✅ Personal persistent Meet endpoint per user (e.g., `/john`)
+- ✅ **Single-user mode**: Root URL (`/`) acts as the meeting link - no slug needed
 - ✅ Host visit creates a new Meet if no active window; redirects host automatically
 - ✅ External visitors within window join same Meet; else see a waiting room
 - ✅ Waiting room uses Server‑Sent Events (SSE) for instant notifications (no polling)
 - ✅ Configurable meet window duration via `MEET_WINDOW_MS` (default 5 minutes)
 - ✅ Long‑lived sessions using refresh tokens (stored encrypted at rest with AES-256-GCM)
 - ✅ Healthcheck endpoint at `/healthz` for monitoring
-- ✅ CSRF protection and security headers (Helmet)
-- ✅ Docker deployment with volume persistence
+- ✅ CSRF protection, rate limiting, and security headers (Helmet)
+- ✅ Docker deployment with volume persistence and permission checks
+- ✅ **Web-based setup wizard** with automatic configuration
 
 ## 📁 Project Layout
 
@@ -156,7 +191,9 @@ The app supports two configuration methods (environment variables take precedenc
 Copy `.env.example` to `.env` and fill in values:
 
 - `BASE_URL`: Public URL (e.g., `https://meet.example.com`).
-- `ALLOWED_DOMAIN`: Workspace domain (e.g., `yourcompany.com`).
+- `ALLOWED_DOMAIN`: Workspace domain (e.g., `yourcompany.com`). **Optional** - leave empty if using `ALLOW_ANY_DOMAIN`.
+- `ALLOW_ANY_DOMAIN`: Set to `true` to allow any Google account (ignores `ALLOWED_DOMAIN`).
+- `SINGLE_USER_MODE`: Set to `true` for single-user deployments where only the first login can use the app.
 - `SESSION_SECRET`: Random 32+ char secret (32+ characters).
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_CALLBACK_URL`.
 - `MEET_WINDOW_MS`: Window in ms (default 300000).
@@ -169,9 +206,30 @@ When using Docker, configuration is stored in `config/app-config.json`. The setu
 {
   "BASE_URL": "https://meet.example.com",
   "ALLOWED_DOMAIN": "yourcompany.com",
+  "ALLOW_ANY_DOMAIN": "false",
+  "SINGLE_USER_MODE": "false",
   "GOOGLE_CLIENT_ID": "your-client-id.apps.googleusercontent.com",
   "GOOGLE_CLIENT_SECRET": "GOCSPX-...",
   "GOOGLE_CALLBACK_URL": "https://meet.example.com/oauth2/callback",
+  "SESSION_SECRET": "your-random-secret-32plus-chars",
+  "PORT": "3000",
+  "MEET_WINDOW_MS": "300000",
+  "DB_FILE": "/data/app.sqlite",
+  "SESSION_DB_FILE": "/data/sessions.sqlite",
+  "NODE_ENV": "production"
+}
+```
+
+**Single-user mode example** (for personal use):
+```json
+{
+  "BASE_URL": "https://meet.mysite.com",
+  "ALLOWED_DOMAIN": "",
+  "ALLOW_ANY_DOMAIN": "true",
+  "SINGLE_USER_MODE": "true",
+  "GOOGLE_CLIENT_ID": "your-client-id.apps.googleusercontent.com",
+  "GOOGLE_CLIENT_SECRET": "GOCSPX-...",
+  "GOOGLE_CALLBACK_URL": "https://meet.mysite.com/oauth2/callback",
   "SESSION_SECRET": "your-random-secret-32plus-chars",
   "PORT": "3000",
   "MEET_WINDOW_MS": "300000",
@@ -241,22 +299,40 @@ server {
 
 ## 📖 Usage
 
-1. Visit `/` and log in with your `@ALLOWED_DOMAIN` account
+### Multi-User Mode (Default)
+
+1. Visit `/` and log in with your allowed Google account
 2. Dashboard shows your personal URL, e.g., `https://meet.example.com/john`
 3. **As host**: Visit your URL to create a Meet and be redirected automatically
 4. **External visitors**: Visit the same URL
    - If within 5 minutes of host creation → Auto-redirect to the Meet
    - Otherwise → Waiting page with real-time notifications until host joins
 
+### Single-User Mode
+
+1. Visit `/` and log in - you become the only authorized user
+2. Your meeting link is simply your base URL (e.g., `https://meet.example.com`)
+3. **As host**: Visit `/` to create a Meet and be redirected automatically
+4. **External visitors**: Visit your base URL
+   - If within 5 minutes of host creation → Auto-redirect to the Meet
+   - Otherwise → Waiting page with real-time notifications until you join
+
 ---
 
 ## 🔒 Security Notes
 
 - Refresh tokens are encrypted at rest using AES‑256‑GCM derived from `SESSION_SECRET`
-- Only users with emails ending in `@ALLOWED_DOMAIN` can authenticate
-- CSRF protection on all forms
-- Security headers via Helmet middleware
+- Domain restriction options:
+  - `ALLOWED_DOMAIN`: Only users with emails ending in `@ALLOWED_DOMAIN` can authenticate
+  - `ALLOW_ANY_DOMAIN`: Any Google account can authenticate (use with caution)
+  - `SINGLE_USER_MODE`: Only the first authenticated user can use the app
+- CSRF protection on all forms (API endpoints exempted for SSE compatibility)
+- Rate limiting on authentication endpoints to prevent brute-force attacks
+- Session regeneration after login to prevent session fixation
+- Security headers via Helmet middleware (X-Frame-Options, Referrer-Policy, etc.)
 - HTTPOnly, Secure, SameSite cookies
+- Docker container runs as non-root user for improved isolation
+- Audit logging for security events
 - No PII is logged beyond essentials; avoid adding sensitive logs
 
 ---
