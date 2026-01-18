@@ -5,6 +5,123 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Waiting for host…</title>
     <link rel="stylesheet" href="/public/styles.css" />
+    <style>
+      .waiting-container {
+        max-width: 540px;
+        margin: 15vh auto;
+        padding: 48px 32px;
+        text-align: center;
+        position: relative;
+      }
+
+      .waiting-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 32px;
+        position: relative;
+      }
+
+      .pulse-rings {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+
+      .pulse-ring {
+        width: 80px;
+        height: 80px;
+        border: 3px solid var(--accent);
+        border-radius: 50%;
+        position: absolute;
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        opacity: 0;
+      }
+
+      .pulse-ring:nth-child(2) {
+        animation-delay: 0.5s;
+      }
+
+      .pulse-ring:nth-child(3) {
+        animation-delay: 1s;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(0.5);
+          opacity: 0.8;
+        }
+        50% {
+          opacity: 0.4;
+        }
+        100% {
+          transform: scale(1.5);
+          opacity: 0;
+        }
+      }
+
+      .center-dot {
+        width: 20px;
+        height: 20px;
+        background: var(--accent);
+        border-radius: 50%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 0 20px rgba(65, 184, 131, 0.5);
+      }
+
+      .waiting-title {
+        font-size: 32px;
+        font-weight: 700;
+        margin: 0 0 16px;
+        background: linear-gradient(135deg, var(--fg) 0%, var(--accent) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .waiting-message {
+        font-size: 18px;
+        color: var(--muted);
+        margin: 0 0 8px;
+      }
+
+      .waiting-submessage {
+        font-size: 14px;
+        color: #6b7280;
+        margin: 0;
+      }
+
+      .waiting-footer {
+        margin-top: 64px;
+        padding-top: 32px;
+        border-top: 1px solid #1f2937;
+      }
+
+      .login-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 14px;
+        padding: 8px 16px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+      }
+
+      .login-link:hover {
+        color: var(--accent);
+        background: rgba(65, 184, 131, 0.1);
+      }
+
+      .login-link svg {
+        width: 16px;
+        height: 16px;
+      }
+    </style>
     <script>
       function startSSE() {
         <% if (typeof singleUserMode !== 'undefined' && singleUserMode && slug === '') { %>
@@ -28,9 +145,28 @@
     </script>
   </head>
   <body>
-    <main class="container">
-      <h1>Waiting for host…</h1>
-      <p>Please keep this tab open. You will be redirected when the host joins.</p>
+    <main class="waiting-container">
+      <div class="waiting-icon">
+        <div class="pulse-rings">
+          <div class="pulse-ring"></div>
+          <div class="pulse-ring"></div>
+          <div class="pulse-ring"></div>
+        </div>
+        <div class="center-dot"></div>
+      </div>
+
+      <h1 class="waiting-title">Waiting for host</h1>
+      <p class="waiting-message">Your meeting will start shortly</p>
+      <p class="waiting-submessage">Keep this tab open — you'll be redirected automatically when the host joins</p>
+
+      <div class="waiting-footer">
+        <a href="/login" class="login-link">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+          </svg>
+          Are you the host? Sign in here
+        </a>
+      </div>
     </main>
   </body>
   </html>
