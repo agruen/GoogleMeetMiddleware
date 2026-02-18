@@ -30,6 +30,10 @@ router.get('/api/wait/:slug/stream', (req, res) => {
   if (active) {
     // immediate notify if already active
     res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
     res.write(`event: active\n`);
     res.write(`data: ${JSON.stringify({ meetUrl: active.meetUrl })}\n\n`);
     return res.end();
