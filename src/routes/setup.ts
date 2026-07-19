@@ -15,7 +15,7 @@ const router = Router();
  */
 router.get('/setup', (req: Request, res: Response) => {
   const config = getCurrentConfig();
-  res.render('setup', { config, errors: null, csrfToken: (req as any).csrfToken() });
+  res.render('setup', { config, errors: null, csrfToken: req.csrfToken() });
 });
 
 /**
@@ -46,6 +46,7 @@ router.post('/setup/save', (req: Request, res: Response) => {
     SESSION_SECRET: formData.SESSION_SECRET?.trim() || generateSessionSecret(),
     PORT: formData.PORT?.trim() || '3000',
     MEET_WINDOW_MS: formData.MEET_WINDOW_MS?.trim() || '300000',
+    MEET_MAX_AGE_MS: formData.MEET_MAX_AGE_MS?.trim() || '28800000',
     DB_FILE: formData.DB_FILE?.trim() || 'app.sqlite',
     SESSION_DB_FILE: formData.SESSION_DB_FILE?.trim() || 'sessions.sqlite',
     NODE_ENV: formData.NODE_ENV?.trim() || 'production',
@@ -69,7 +70,7 @@ router.post('/setup/save', (req: Request, res: Response) => {
     return res.render('setup', {
       config,
       errors: validation.errors,
-      csrfToken: (req as any).csrfToken(),
+      csrfToken: req.csrfToken(),
     });
   }
 
@@ -93,7 +94,7 @@ router.post('/setup/save', (req: Request, res: Response) => {
     res.render('setup', {
       config,
       errors: ['Failed to save configuration. Please check file permissions.'],
-      csrfToken: (req as any).csrfToken(),
+      csrfToken: req.csrfToken(),
     });
   }
 });

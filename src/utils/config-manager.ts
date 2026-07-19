@@ -13,6 +13,7 @@ export interface AppConfig {
   SESSION_SECRET: string;
   PORT?: string;
   MEET_WINDOW_MS?: string;
+  MEET_MAX_AGE_MS?: string;
   DB_FILE?: string;
   SESSION_DB_FILE?: string;
   NODE_ENV?: string;
@@ -64,7 +65,7 @@ export function loadConfig(): Partial<AppConfig> {
   const mergedConfig = {
     ...fileConfig,
     ...Object.fromEntries(
-      Object.entries(process.env).filter(([_, v]) => v !== undefined && v !== '')
+      Object.entries(process.env).filter(([, v]) => v !== undefined && v !== '')
     ),
   };
 
@@ -183,6 +184,7 @@ export function getCurrentConfig(): Partial<AppConfig> {
     GOOGLE_CALLBACK_URL: config.GOOGLE_CALLBACK_URL || '',
     SESSION_SECRET: config.SESSION_SECRET || '',
     MEET_WINDOW_MS: config.MEET_WINDOW_MS || '300000',
+    MEET_MAX_AGE_MS: config.MEET_MAX_AGE_MS || '28800000',
     DB_FILE: config.DB_FILE || 'app.sqlite',
     SESSION_DB_FILE: config.SESSION_DB_FILE || 'sessions.sqlite',
     NODE_ENV: config.NODE_ENV || 'production',

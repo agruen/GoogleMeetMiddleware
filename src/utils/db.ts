@@ -17,6 +17,7 @@ export type Meet = {
   id: number;
   userId: number;
   meetUrl: string;
+  spaceName: string | null; // Meet API resource name ("spaces/{space}")
   expiresAt: string; // ISO
   createdAt: string;
 };
@@ -73,6 +74,12 @@ export const db = {
         lastSeenAt TEXT NOT NULL
       )
     `).run();
+
+    // Migration: meets.spaceName (added for conference liveness checks)
+    const meetColumns = conn.prepare('PRAGMA table_info(meets)').all() as { name: string }[];
+    if (!meetColumns.some((c) => c.name === 'spaceName')) {
+      conn.prepare('ALTER TABLE meets ADD COLUMN spaceName TEXT').run();
+    }
   },
 
   // Users
@@ -92,14 +99,28 @@ export const db = {
   getAllUsers(): User[] {
     return conn.prepare('SELECT * FROM users ORDER BY id ASC').all() as User[];
   },
+  // The one-and-only account in single-user mode
+  getFirstUser(): User | undefined {
+    return conn.prepare('SELECT * FROM users ORDER BY id ASC LIMIT 1').get() as User | undefined;
+  },
   insertUser(u: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): User {
     const now = dayjs().toISOString();
     const info = conn
       .prepare(
-        `INSERT INTO users(googleId, email, firstName, lastName, slug, refreshTokenEnc, createdAt, updatedAt)
+        `INSERT INTO users(googleId, email, firstName, lastName, slug, refreshTokenEnc,
+           createdAt, updatedAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(u.googleId, u.email, u.firstName, u.lastName ?? null, u.slug, u.refreshTokenEnc, now, now);
+      .run(
+        u.googleId,
+        u.email,
+        u.firstName,
+        u.lastName ?? null,
+        u.slug,
+        u.refreshTokenEnc,
+        now,
+        now
+      );
     return { ...u, id: Number(info.lastInsertRowid), createdAt: now, updatedAt: now };
   },
   updateUserRefreshToken(id: number, refreshTokenEnc: string) {
@@ -122,21 +143,47 @@ export const db = {
       .prepare('SELECT * FROM meets WHERE userId = ? AND expiresAt > ? ORDER BY id DESC LIMIT 1')
       .get(userId, now) as Meet | undefined;
   },
-  createMeet(userId: number, meetUrl: string, expiresAt: string): Meet {
+  createMeet(
+    userId: number,
+    meetUrl: string,
+    expiresAt: string,
+    spaceName: string | null = null
+  ): Meet {
     const now = dayjs().toISOString();
     const info = conn
-      .prepare('INSERT INTO meets(userId, meetUrl, expiresAt, createdAt) VALUES (?, ?, ?, ?)')
-      .run(userId, meetUrl, expiresAt, now);
-    return { id: Number(info.lastInsertRowid), userId, meetUrl, expiresAt, createdAt: now };
+      .prepare(
+        'INSERT INTO meets(userId, meetUrl, spaceName, expiresAt, createdAt) VALUES (?, ?, ?, ?, ?)'
+      )
+      .run(userId, meetUrl, spaceName, expiresAt, now);
+    return {
+      id: Number(info.lastInsertRowid),
+      userId,
+      meetUrl,
+      spaceName,
+      expiresAt,
+      createdAt: now,
+    };
   },
 
   // Waiting sessions (best-effort; not critical path)
-  upsertWaitingSession(slug: string, ip?: string, ua?: string) {
+  addWaitingSession(slug: string, ip?: string, ua?: string) {
     const now = dayjs().toISOString();
     conn
       .prepare(
         'INSERT INTO waiting_sessions(slug, ip, ua, createdAt, lastSeenAt) VALUES (?, ?, ?, ?, ?)'
       )
       .run(slug, ip ?? null, ua ?? null, now, now);
+  },
+
+  // Housekeeping: drop meeting records long past their window and old
+  // waiting-session telemetry so the tables don't grow without bound.
+  prune() {
+    const meetCutoff = dayjs().subtract(7, 'day').toISOString();
+    conn.prepare('DELETE FROM meets WHERE expiresAt < ?').run(meetCutoff);
+    conn.prepare('DELETE FROM waiting_sessions WHERE lastSeenAt < ?').run(meetCutoff);
+  },
+
+  close() {
+    conn.close();
   },
 };

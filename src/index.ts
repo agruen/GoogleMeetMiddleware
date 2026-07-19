@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express from 'express';
+import express, { type NextFunction, type Request, type Response } from 'express';
 import session from 'express-session';
 import path from 'node:path';
 import morgan from 'morgan';
@@ -8,7 +8,6 @@ import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
 import SQLiteStoreFactory from 'connect-sqlite3';
 import { rateLimit } from 'express-rate-limit';
-// @ts-ignore - Type definitions for @dr.pogodin/csurf are in src/types/csrf.d.ts
 import csrf from '@dr.pogodin/csurf';
 import crypto from 'node:crypto';
 
@@ -87,8 +86,8 @@ if (!setupComplete) {
   });
 
   // Error handler for setup mode
-  app.use((err: any, req: any, res: any, next: any) => {
-    if (err.code === 'EBADCSRFTOKEN') {
+  app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+    if ((err as { code?: string }).code === 'EBADCSRFTOKEN') {
       console.warn(`[Security] CSRF validation failed in setup from IP: ${req.ip}`);
       return res.status(403).send('Invalid CSRF token. Please refresh and try again.');
     }
@@ -106,11 +105,12 @@ if (!setupComplete) {
   const { db } = await import('./utils/db.js');
   const { config } = await import('./utils/env.js');
   const { setLocalsFromSession } = await import('./middleware/auth.js');
-  const { createMeetWithRefreshToken } = await import('./adapters/google-meet/index.js');
-  const { subscribe, broadcast } = await import('./utils/sse.js');
+  const { ensureActiveMeetForHost, resolveJoinableMeet, startWaitingRoomSweeper } = await import(
+    './services/meetings.js'
+  );
+  const { closeAllSubscribers } = await import('./utils/sse.js');
   const authRouter = await import('./routes/auth.js');
   const meetRouter = await import('./routes/meet.js');
-  const dayjs = await import('dayjs');
 
   // Session with real secret from config
   const sessionDbPath = env('SESSION_DB_FILE', 'sessions.sqlite');
@@ -122,7 +122,7 @@ if (!setupComplete) {
       store: new SQLiteStore({
         db: sessionDbFile,
         dir: sessionDbDir,
-      }) as any, // Type compatibility workaround for connect-sqlite3
+      }) as unknown as session.Store, // connect-sqlite3 types lag behind express-session
       secret: env('SESSION_SECRET'),
       resave: false,
       saveUninitialized: false,
@@ -146,14 +146,17 @@ if (!setupComplete) {
       return next();
     }
     // Apply CSRF to everything else
-    csrfProtection(req, res, (err: any) => {
+    csrfProtection(req, res, (err?: unknown) => {
       if (err) return next(err);
-      res.locals.csrfToken = (req as any).csrfToken();
+      res.locals.csrfToken = req.csrfToken();
       next();
     });
   });
 
-  // Rate limiters
+  // Rate limiter for authentication endpoints ONLY. It must never see meet
+  // pages or the SSE/status endpoints: a tripped limit there returns 429,
+  // which EventSource treats as fatal and stops reconnecting — stranding
+  // visitors on the waiting page forever.
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 10,
@@ -163,35 +166,7 @@ if (!setupComplete) {
       res.status(429).send('Too many authentication attempts.');
     },
   });
-
-  // SSE stream for single-user mode (root URL)
-  app.get('/api/wait/stream', (req, res) => {
-    if (!config.singleUserMode()) {
-      res.status(404).send('Not found');
-      return;
-    }
-
-    // Get the single user (first user)
-    const users = db.getAllUsers();
-    if (users.length === 0) {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.write('event: error\n');
-      res.write('data: {"message":"no-user"}\n\n');
-      return res.end();
-    }
-
-    const singleUser = users[0];
-    const active = db.getActiveMeet(singleUser.id);
-    if (active) {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.write('event: active\n');
-      res.write(`data: ${JSON.stringify({ meetUrl: active.meetUrl })}\n\n`);
-      return res.end();
-    }
-
-    db.upsertWaitingSession(singleUser.slug, req.ip, req.headers['user-agent']);
-    subscribe(req, res, `wait:${singleUser.slug}`);
-  });
+  app.use(['/login', '/oauth2', '/logout'], authLimiter);
 
   // Home/Dashboard (with single-user mode support)
   app.get('/', async (req, res) => {
@@ -200,72 +175,88 @@ if (!setupComplete) {
 
     // Single-user mode: treat root URL as the meeting URL
     if (config.singleUserMode()) {
-      const users = db.getAllUsers();
+      const singleUser = db.getFirstUser();
 
       // No users yet - show login page
-      if (users.length === 0) {
+      if (!singleUser) {
         if (!user) {
-          return res.render('home', { user: null, baseUrl: env('BASE_URL'), setupComplete: setupCompleteQuery, singleUserMode: true });
+          return res.render('home', {
+            user: null,
+            baseUrl: env('BASE_URL'),
+            setupComplete: setupCompleteQuery,
+            singleUserMode: true,
+          });
         }
         // User just logged in, they are the single user - show dashboard
         const personalUrl = env('BASE_URL');
         return res.render('dashboard', { user, personalUrl, singleUserMode: true });
       }
 
-      const singleUser = users[0];
       const isHost = user && user.id === singleUser.id;
-      const active = db.getActiveMeet(singleUser.id);
 
       if (isHost) {
         // Host visiting root: create meeting or join existing
-        if (!active) {
-          try {
-            console.log(`[Meet] Single-user host creating new meeting`);
-            const meetUrl = await createMeetWithRefreshToken(singleUser.refreshTokenEnc);
-            const expiresAt = dayjs.default().add(config.meetWindowMs(), 'millisecond').toISOString();
-            db.createMeet(singleUser.id, meetUrl, expiresAt);
-            console.log(`[Meet] Meeting created: ${meetUrl}`);
-            broadcast(`wait:${singleUser.slug}`, 'active', { meetUrl });
-            return res.redirect(meetUrl);
-          } catch (err) {
-            console.error(err);
-            return res.status(502).send('Failed to create Google Meet');
-          }
+        try {
+          const meet = await ensureActiveMeetForHost(singleUser);
+          return res.redirect(meet.meetUrl);
+        } catch (err) {
+          console.error('[Meet] Failed to create meeting (single-user):', err);
+          return res.status(502).send('Failed to create Google Meet');
         }
-        console.log(`[Meet] Single-user host joining existing meeting: ${active.meetUrl}`);
-        return res.redirect(active.meetUrl);
       }
 
       // Visitor in single-user mode
-      if (active) {
-        return res.redirect(active.meetUrl);
+      try {
+        res.setHeader('Cache-Control', 'no-store');
+        const meet = await resolveJoinableMeet(singleUser);
+        if (meet) return res.redirect(meet.meetUrl);
+        db.addWaitingSession(singleUser.slug, req.ip, req.headers['user-agent']);
+        return res.render('waiting', { slug: '', singleUserMode: true });
+      } catch (err) {
+        console.error('[Meet] Visitor flow failed (single-user):', err);
+        return res.status(500).send('Something went wrong');
       }
-
-      // Show waiting room for root URL
-      db.upsertWaitingSession(singleUser.slug, req.ip, req.headers['user-agent']);
-      return res.render('waiting', { slug: '', singleUserMode: true });
     }
 
     // Normal mode (not single-user)
     if (!user) {
-      return res.render('home', { user: null, baseUrl: env('BASE_URL'), setupComplete: setupCompleteQuery, singleUserMode: false });
+      return res.render('home', {
+        user: null,
+        baseUrl: env('BASE_URL'),
+        setupComplete: setupCompleteQuery,
+        singleUserMode: false,
+      });
     }
     const personalUrl = `${env('BASE_URL')}/${user.slug}`;
     return res.render('dashboard', { user, personalUrl, singleUserMode: false });
   });
 
-  // Auth routes with rate limiting
-  app.use('/', authLimiter, authRouter.default);
+  // Auth routes (rate-limited above by path)
+  app.use('/', authRouter.default);
 
   // Meet routes (NO rate limiting - SSE needs unrestricted access)
   app.use('/', meetRouter.default);
 
   // Initialize DB tables on startup
   db.init();
+  db.prune();
+
+  // Safety net: periodically re-check waiting rooms so a missed broadcast or
+  // a conference that went live late still redirects everyone.
+  startWaitingRoomSweeper();
+
+  // End open SSE streams on shutdown so browsers reconnect promptly instead
+  // of hanging on a dead connection through a deploy.
+  const shutdown = () => {
+    closeAllSubscribers();
+    process.exit(0);
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 
   // Error handler for CSRF and other errors
-  app.use((err: any, req: any, res: any, next: any) => {
-    if (err.code === 'EBADCSRFTOKEN') {
+  app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+    if ((err as { code?: string }).code === 'EBADCSRFTOKEN') {
       console.warn(`[Security] CSRF validation failed from IP: ${req.ip} on ${req.path}`);
       return res.status(403).send('Invalid security token');
     }
@@ -273,6 +264,13 @@ if (!setupComplete) {
     res.status(500).send('Internal server error');
   });
 }
+
+// A single stray rejection (e.g. one dead socket) must not take down the
+// process — that would silently disconnect every visitor waiting for a
+// redirect. Log loudly instead.
+process.on('unhandledRejection', (reason) => {
+  console.error('[Fatal] Unhandled rejection:', reason);
+});
 
 const port = Number(process.env.PORT || '3000');
 

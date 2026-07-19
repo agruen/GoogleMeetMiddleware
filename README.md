@@ -1,6 +1,6 @@
 # Multi-User Google Meet Link Generator with Waiting Room
 
-A minimal, production‑ready web app for generating on‑demand Google Meet links with a 5‑minute sharing window and a simple waiting room for external visitors.
+A minimal, production‑ready web app for generating on‑demand Google Meet links with a live‑meeting‑aware sharing window and a simple waiting room for external visitors.
 
 ---
 
@@ -27,7 +27,7 @@ Instead of creating a new Meet link every time you need a video call and texting
 ### Key Benefits
 
 - **One permanent link per employee** - No more creating and sharing new Meet links
-- **5-minute window** - The Meet link stays valid for 5 minutes after creation
+- **Live-meeting aware** - Late visitors are redirected as long as the meeting is actually in progress (checked via the Google Meet API), not just for a fixed window
 - **Real-time updates** - Visitors don't need to refresh; they're automatically redirected
 - **Secure & controlled** - Only company employees can be hosts
 - **Easy setup** - Web-based configuration wizard (no manual editing needed)
@@ -86,10 +86,10 @@ The app supports three deployment modes depending on your needs:
   - Single-user mode for personal deployments (`SINGLE_USER_MODE=true`)
 - ✅ Personal persistent Meet endpoint per user (e.g., `/john`)
 - ✅ **Single-user mode**: Root URL (`/`) acts as the meeting link - no slug needed
-- ✅ Host visit creates a new Meet if no active window; redirects host automatically
-- ✅ External visitors within window join same Meet; else see a waiting room
-- ✅ Waiting room uses Server‑Sent Events (SSE) for instant notifications (no polling)
-- ✅ Configurable meet window duration via `MEET_WINDOW_MS` (default 5 minutes)
+- ✅ Host visit creates a new Meet if none is joinable; rejoins the current one while its conference is still live
+- ✅ External visitors join the same Meet while it's fresh or live; otherwise they see a waiting room
+- ✅ Waiting room uses Server‑Sent Events (SSE) with automatic reconnection, plus a polling fallback and a server‑side sweeper, so waiters are reliably redirected
+- ✅ Configurable grace window (`MEET_WINDOW_MS`, default 5 minutes) and max meeting age (`MEET_MAX_AGE_MS`, default 8 hours)
 - ✅ Long‑lived sessions using refresh tokens (stored encrypted at rest with AES-256-GCM)
 - ✅ Healthcheck endpoint at `/healthz` for monitoring
 - ✅ CSRF protection, rate limiting, and security headers (Helmet)
@@ -196,7 +196,8 @@ Copy `.env.example` to `.env` and fill in values:
 - `SINGLE_USER_MODE`: Set to `true` for single-user deployments where only the first login can use the app.
 - `SESSION_SECRET`: Random 32+ char secret (32+ characters).
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_CALLBACK_URL`.
-- `MEET_WINDOW_MS`: Window in ms (default 300000).
+- `MEET_WINDOW_MS`: Grace window in ms after creation during which visitors join without a liveness check (default 300000 = 5 min).
+- `MEET_MAX_AGE_MS`: Max age in ms of a meeting record; between the grace window and this age visitors are redirected only while the conference is live (default 28800000 = 8 h).
 - `DB_FILE` and `SESSION_DB_FILE`: SQLite file paths (use `/data/app.sqlite` and `/data/sessions.sqlite` for Docker).
 
 #### Option 2: Config File (Docker deployments)
@@ -214,6 +215,7 @@ When using Docker, configuration is stored in `config/app-config.json`. The setu
   "SESSION_SECRET": "your-random-secret-32plus-chars",
   "PORT": "3000",
   "MEET_WINDOW_MS": "300000",
+  "MEET_MAX_AGE_MS": "28800000",
   "DB_FILE": "/data/app.sqlite",
   "SESSION_DB_FILE": "/data/sessions.sqlite",
   "NODE_ENV": "production"
@@ -233,6 +235,7 @@ When using Docker, configuration is stored in `config/app-config.json`. The setu
   "SESSION_SECRET": "your-random-secret-32plus-chars",
   "PORT": "3000",
   "MEET_WINDOW_MS": "300000",
+  "MEET_MAX_AGE_MS": "28800000",
   "DB_FILE": "/data/app.sqlite",
   "SESSION_DB_FILE": "/data/sessions.sqlite",
   "NODE_ENV": "production"
@@ -305,7 +308,7 @@ server {
 2. Dashboard shows your personal URL, e.g., `https://meet.example.com/john`
 3. **As host**: Visit your URL to create a Meet and be redirected automatically
 4. **External visitors**: Visit the same URL
-   - If within 5 minutes of host creation → Auto-redirect to the Meet
+   - If the meeting is fresh (grace window) or its conference is live → Auto-redirect to the Meet
    - Otherwise → Waiting page with real-time notifications until host joins
 
 ### Single-User Mode
@@ -314,7 +317,7 @@ server {
 2. Your meeting link is simply your base URL (e.g., `https://meet.example.com`)
 3. **As host**: Visit `/` to create a Meet and be redirected automatically
 4. **External visitors**: Visit your base URL
-   - If within 5 minutes of host creation → Auto-redirect to the Meet
+   - If the meeting is fresh (grace window) or its conference is live → Auto-redirect to the Meet
    - Otherwise → Waiting page with real-time notifications until you join
 
 ---
@@ -354,11 +357,11 @@ Minimal unit tests for utilities (slug + crypto). API/adapter tests should mock 
 
 ## 📝 Notes
 
-- Meeting events are created with a 1‑hour duration solely to obtain a Meet URL; the app's active window for sharing is governed independently by `MEET_WINDOW_MS`
-- If multiple visitors arrive concurrently, only the host visit triggers meet creation; others will be redirected once active
+- Joinability is two-phase: within `MEET_WINDOW_MS` of creation a meeting is assumed joinable (the host may still be clicking through Meet's "Join now" screen); after that, and up to `MEET_MAX_AGE_MS`, visitors are redirected only while the space has an active conference (checked via the Meet API with a short cache)
+- If multiple visitors arrive concurrently, only the host visit triggers meet creation; creation is single-flight per host, so double-clicks or a second device can't spawn a competing meeting
+- The waiting room is redundantly wired: SSE push (with client-side reconnection and backoff), a 20-second status poll fallback, and a server-side sweeper that re-checks every waiting room — any one of them is enough to get a waiter redirected
 - To rotate secrets/tokens, re‑authenticate users and update `.env` as required
-- The waiting room uses Server-Sent Events (SSE) for push notifications - no polling overhead!
-- Personal slugs are auto-generated from first names (e.g., "John Doe" → `/john`); duplicates get numeric suffixes
+- Personal slugs are auto-generated from first names (e.g., "John Doe" → `/john`); duplicates get numeric suffixes, and slugs that would shadow app routes (`login`, `api`, ...) are never assigned
 
 ---
 

@@ -10,7 +10,11 @@ module.exports = {
   ignorePatterns: ['dist', 'node_modules'],
   rules: {
     'max-len': ['error', { code: 100, ignoreUrls: true }],
-    'no-console': 'off'
+    'no-console': 'off',
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
+    ]
   }
 };
 

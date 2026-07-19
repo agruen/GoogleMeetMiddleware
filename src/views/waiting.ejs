@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Waiting for host…</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/public/styles.css" />
     <style>
       .waiting-container {
@@ -123,25 +124,121 @@
       }
     </style>
     <script>
-      function startSSE() {
-        <% if (typeof singleUserMode !== 'undefined' && singleUserMode && slug === '') { %>
-        const es = new EventSource('/api/wait/stream');
-        <% } else { %>
-        const es = new EventSource('/api/wait/<%= slug %>/stream');
-        <% } %>
-        es.addEventListener('active', (ev) => {
+      (function () {
+        'use strict';
+        var streamPath = <%- JSON.stringify(slug ? '/api/wait/' + slug + '/stream' : '/api/wait/stream') %>;
+        var statusPath = <%- JSON.stringify(slug ? '/api/wait/' + slug + '/status' : '/api/wait/status') %>;
+
+        var redirected = false;
+        var terminal = false;
+        var es = null;
+        var reconnectTimer = null;
+        var reconnectDelay = 2000;
+        var MAX_RECONNECT_DELAY = 30000;
+        var POLL_INTERVAL = 20000;
+
+        function goToMeeting(url) {
+          if (redirected || terminal) return;
+          if (typeof url !== 'string' || !/^https:\/\//.test(url)) return;
+          redirected = true;
+          closeStream();
+          window.location.href = url;
+        }
+
+        function closeStream() {
+          if (es) {
+            try { es.close(); } catch (e) { /* noop */ }
+            es = null;
+          }
+        }
+
+        function stopWaiting(message) {
+          terminal = true;
+          closeStream();
+          var apply = function () {
+            var title = document.querySelector('.waiting-title');
+            var msg = document.querySelector('.waiting-message');
+            var sub = document.querySelector('.waiting-submessage');
+            if (title) title.textContent = 'Meeting unavailable';
+            if (msg) msg.textContent = message;
+            if (sub) sub.textContent = 'Check the link you were given, or contact your host.';
+          };
+          // This script runs in <head>; the elements may not be parsed yet.
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', apply);
+          } else {
+            apply();
+          }
+        }
+
+        function connect() {
+          if (redirected || terminal) return;
+          closeStream();
           try {
-            const data = JSON.parse(ev.data);
-            if (data && data.meetUrl) {
-              window.location.href = data.meetUrl;
-            }
-          } catch (e) {}
+            es = new EventSource(streamPath);
+          } catch (e) {
+            scheduleReconnect();
+            return;
+          }
+          es.addEventListener('active', function (ev) {
+            try {
+              var data = JSON.parse(ev.data);
+              if (data) goToMeeting(data.meetUrl);
+            } catch (e) { /* ignore malformed event */ }
+          });
+          es.addEventListener('error', function (ev) {
+            // Server-sent "error" events carry data; native connection
+            // failures do not.
+            if (!ev.data) return;
+            try {
+              var data = JSON.parse(ev.data);
+              if (data && data.terminal) stopWaiting('This meeting link is not available.');
+            } catch (e) { /* ignore malformed event */ }
+          });
+          es.onopen = function () {
+            reconnectDelay = 2000;
+          };
+          es.onerror = function () {
+            // EventSource stops reconnecting permanently after a non-200
+            // response (server restart, proxy hiccup, rate limit). Rebuild
+            // the connection ourselves with backoff.
+            if (es && es.readyState === EventSource.CLOSED) scheduleReconnect();
+          };
+        }
+
+        function scheduleReconnect() {
+          if (redirected || terminal || reconnectTimer) return;
+          reconnectTimer = setTimeout(function () {
+            reconnectTimer = null;
+            connect();
+          }, reconnectDelay + Math.floor(Math.random() * 1000));
+          reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
+        }
+
+        function checkStatus() {
+          if (redirected || terminal) return;
+          fetch(statusPath, { cache: 'no-store' })
+            .then(function (r) {
+              if (r.status === 404) {
+                stopWaiting('This meeting link is not available.');
+                return null;
+              }
+              return r.ok ? r.json() : null;
+            })
+            .then(function (data) {
+              if (data && data.status === 'active') goToMeeting(data.meetUrl);
+            })
+            .catch(function () { /* transient network error; SSE remains primary */ });
+        }
+
+        // SSE is the primary signal; polling is the belt-and-braces fallback
+        // for anything that silently kills the stream.
+        connect();
+        setInterval(checkStatus, POLL_INTERVAL);
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible') checkStatus();
         });
-        es.onerror = () => {
-          // Let EventSource auto-reconnect; do nothing.
-        };
-      }
-      window.addEventListener('load', startSSE);
+      })();
     </script>
   </head>
   <body>
