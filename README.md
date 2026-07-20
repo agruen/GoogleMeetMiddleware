@@ -276,6 +276,25 @@ If building directly with Docker for a specific ARM platform:
 docker buildx build --platform linux/arm64 -t google-meet-middleware:arm64 .
 ```
 
+### Pre-built images (GitHub Container Registry)
+
+Every push to `main` publishes a multi-arch image (linux/amd64 + linux/arm64, Raspberry Pi ready)
+via GitHub Actions (`.github/workflows/docker-publish.yml`):
+
+```bash
+docker pull ghcr.io/agruen/googlemeetmiddleware:latest
+```
+
+To use it instead of building locally, replace the `build:` block in `docker-compose.yml` with:
+
+```yaml
+    image: ghcr.io/agruen/googlemeetmiddleware:latest
+```
+
+Available tags: `latest` and `main` (tip of main), `sha-<commit>` (immutable, per commit), and
+`X.Y.Z` / `X.Y` when a `vX.Y.Z` git tag is pushed. If the package is private, log in first with a
+personal access token that has `read:packages`: `docker login ghcr.io`.
+
 ---
 
 ## 🔄 Reverse Proxy (nginx example)
